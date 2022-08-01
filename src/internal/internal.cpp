@@ -25,7 +25,7 @@ namespace yolo
 		}
 		else
 		{
-			std::cout << "yolo: " << message << std::endl;
+			std::cout << "obj_det: " << message << std::endl;
 		}
 	}
 
@@ -73,6 +73,7 @@ namespace yolo
 			std::atomic_bool logged_progress_once = false;
 			const uint32_t collection_size = collection.size();
 
+			log("Converting images...");
 			std::transform(std::execution::par_unseq, collection.begin(), collection.end(), temp_collection.begin(), [&last_update_secs, &local_num_image_done, &logged_progress_once, desired_size, desired_num_channels, target_folder, collection_size, images_cache_folder](const annotations::annotations& annotations)
 			{
 				annotations::annotations updated = annotations;

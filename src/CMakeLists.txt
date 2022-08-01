@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(yolo)
+project(object_detection_lib)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake-modules)
 
@@ -22,5 +22,5 @@ file(GLOB_RECURSE sources *.cpp *.hpp)
 include_directories(../3rdparty/stb/include)
 include_directories(${CURL_INCLUDE_DIR})
 
-add_library(yolo ${sources})
-target_link_libraries(yolo PRIVATE dark ${CURL_LIBRARIES} ${TBB_LIBRARIES})
+add_library(object_detection_lib ${sources})
+target_link_libraries(object_detection_lib PRIVATE dark ${CURL_LIBRARIES} ${TBB_LIBRARIES})
