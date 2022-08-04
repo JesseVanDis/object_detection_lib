@@ -64,8 +64,11 @@ namespace yolo
 		bool train(const std::filesystem::path& images_folder, const std::filesystem::path& weights_folder_path = "./weights", const model_args& args = {});
 
 		/// same as 'train', but prints a message of instructions on how to do so on google colab, which offers good GPU's
-		/// would be cool if this could be automated if they have an API or something...
-		void offer_colab_training();
+		/// would be cool if this could be automated trough an API or something...
+		void train_on_colab(const std::filesystem::path& images_folder, const std::filesystem::path& weights_folder_path = "./weights", const model_args& args = {});
+
+		/// downloads an existing dataset from google open images, with the matched tags. It will use the opensource tool FiftyOne
+		void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::optional<std::filesystem::path>& cache_folder = std::nullopt);
 
 		/// run YOLO v3 detection on an image
 		//void detect(const std::filesystem::path& image, const std::filesystem::path& weights_filepath = "./trained.weights", const model_args& args = {});

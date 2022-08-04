@@ -1,4 +1,5 @@
 #include <iostream>
+#include <python3.8/Python.h>
 #include "include/yolo.hpp"
 #include "internal/annotations.hpp"
 #include "internal/cfg.hpp"
@@ -118,9 +119,66 @@ namespace yolo
 			return true;
 		}
 
-		void offer_colab_training()
+		void train_on_colab(const std::filesystem::path& images_folder, const std::filesystem::path& weights_folder_path, const model_args& args)
 		{
-			//todo
+
+		}
+
+		void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::optional<std::filesystem::path>& cache_folder)
+		{
+			/// https://storage.googleapis.com/openimages/web/download.html
+
+			// https://www.tutorialspoint.com/how-to-create-a-virtual-environment-in-python
+
+			// sudo apt install python3-virtualenv
+
+			PyObject* pInt;
+
+			Py_Initialize();
+
+			std::stringstream python_command;
+
+			python_command << std::endl << "import fiftyone as fo";
+			python_command << std::endl << "import fiftyone.zoo as foz";
+			python_command << std::endl << "";
+			python_command << std::endl << "dataset = foz.load_zoo_dataset(";
+			python_command << std::endl << "\"open-images-v6\",";
+			python_command << std::endl << "		split=\"validation\",";
+			python_command << std::endl << "		max_samples=100,";
+			python_command << std::endl << "		seed=51,";
+			python_command << std::endl << "		shuffle=True,";
+			python_command << std::endl << ")";
+
+			std::string python_command_str = python_command.str();
+			const char* python_command_cstr = python_command_str.c_str();
+
+			PyRun_SimpleString(python_command_cstr);
+
+			Py_Finalize();
+
+
+			// python3 -V
+
+			// sudo apt install python3-pip
+			// sudo apt install python3.8-venv
+			// python3 -m venv tutorial-env
+			// source tutorial-env/bin/activate
+			// python -m pip install fiftyone
+
+
+			/*
+			 import fiftyone as fo
+			import fiftyone.zoo as foz
+
+			 dataset = foz.load_zoo_dataset(
+				"open-images-v6",
+				split="validation",
+				max_samples=100,
+				seed=51,
+				shuffle=True,
+			)
+			 */
+
 		}
 
 		/// run YOLO v3 detection on an image
