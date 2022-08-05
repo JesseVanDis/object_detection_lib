@@ -49,26 +49,23 @@ namespace yolo
 			float validation_ratio = 0.05;
 		};
 
-		/// Train YOLO v3 on a dataset
-		/// \param images_folder folder with the images and annotations (.txt YOLO format) to train on.
-		///                      The data inside the folder must be structured like so: 'img_1.jpg, img_1.txt, img_2.jpg, img_2.txt'. So no subdirectories, and the name of the jpg and txt must match.
-		///                      It will automatically split into 'training' and 'eval' sections.
+		/// Train YOLO v3 on a dataset.
+		/// \param images_and_txt_annotations_folder folder with the images and annotations (.txt in YOLOv4 format) to train on.
+		///                                          The data inside the folder must be structured like so: 'img_1.jpg, img_1.txt, img_2.jpg, img_2.txt'. So no subdirectories, and the name of the jpg and txt must match.
+		///                                          It will automatically split into 'training' and 'eval' sections.
 		///
-		///                      A YOLO .txt annotation format example (class_id, x, y, width, height):
-		///                          0 0.658 0.696 0.079 0.141
-		///                          0 0.712 0.688 0.095 0.119
+		///                                          A YOLO .txt annotation format example (class_id, x, y, width, height):
+		///                                              0 0.658 0.696 0.079 0.141
+		///                                              0 0.712 0.688 0.095 0.119
 		///
 		/// \param trained_model_dest_filepath target folder or filepath ( example: weights.data )
 		///
 		/// \param args          yolo v3 model arguments.
-		bool train(const std::filesystem::path& images_folder, const std::filesystem::path& weights_folder_path = "./weights", const model_args& args = {});
+		bool train(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const model_args& args = {});
 
 		/// same as 'train', but prints a message of instructions on how to do so on google colab, which offers good GPU's
 		/// would be cool if this could be automated trough an API or something...
-		void train_on_colab(const std::filesystem::path& images_folder, const std::filesystem::path& weights_folder_path = "./weights", const model_args& args = {});
-
-		/// downloads an existing dataset from google open images, with the matched tags. It will use the opensource tool FiftyOne
-		void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::optional<std::filesystem::path>& cache_folder = std::nullopt);
+		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const model_args& args = {});
 
 		/// run YOLO v3 detection on an image
 		//void detect(const std::filesystem::path& image, const std::filesystem::path& weights_filepath = "./trained.weights", const model_args& args = {});
@@ -78,6 +75,13 @@ namespace yolo
 
 	}
 
+	/// downloads an existing dataset from google open images, with the matched tags. It will use the opensource tool FiftyOne
+	/// \param target_images_folder Target folder to save the images and notation files to. Format will be YOLOv4 (img1.jpg, img1.txt, img2.jpg, img2.txt ect... no sub-folders)
+	/// \param class_name class name of the images that should be downloaded. examples: "Cat", "Dog", "Human" ect...  Combining not possible (yet)
+	/// \param max_samples
+	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples = 100);
+
+	/// sets log callback for the given function. If not set, it will use std::cout
 	void set_log_callback(void(*log_function)(const std::string_view& message));
 }
 

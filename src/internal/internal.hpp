@@ -1,5 +1,5 @@
-#ifndef ALL_INTERNAL_HPP
-#define ALL_INTERNAL_HPP
+#ifndef ALL_YOLO_INTERNAL_HPP
+#define ALL_YOLO_INTERNAL_HPP
 
 #include "annotations.hpp"
 #include "cfg.hpp"
@@ -38,4 +38,4 @@ namespace yolo::internal
 }
 
 
-#endif //ALL_INTERNAL_HPP
+#endif //ALL_YOLO_INTERNAL_HPP

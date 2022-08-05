@@ -1,9 +1,9 @@
 #include <iostream>
-#include <python3.8/Python.h>
 #include "include/yolo.hpp"
 #include "internal/annotations.hpp"
 #include "internal/cfg.hpp"
 #include "internal/internal.hpp"
+#include "internal/python.hpp"
 #include "models/yolov3.h"
 // https://colab.research.google.com/drive/1dT1xZ6tYClq4se4kOTen_u5MSHVHQ2hu
 
@@ -30,13 +30,13 @@ namespace yolo
 			uint32_t 						filters;
 		};
 
-		bool train(const std::filesystem::path& images_folder, const std::filesystem::path& weights_folder_path, const model_args& args)
+		bool train(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const model_args& args)
 		{
 			const std::filesystem::path processed_dir = weights_folder_path / "tmp"; // std::filesystem::temp_directory_path();
 			const std::filesystem::path cache_dir = weights_folder_path / "tmp" / "cache"; // std::filesystem::temp_directory_path();
 
 			// load annotations
-			auto all_set = annotations::annotations_collection::load(images_folder);
+			auto all_set = annotations::annotations_collection::load(images_and_txt_annotations_folder);
 			if(!all_set.has_value())
 			{
 				log("Failed to load annotations");
@@ -119,66 +119,11 @@ namespace yolo
 			return true;
 		}
 
-		void train_on_colab(const std::filesystem::path& images_folder, const std::filesystem::path& weights_folder_path, const model_args& args)
+		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const model_args& args)
 		{
-
-		}
-
-		void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::optional<std::filesystem::path>& cache_folder)
-		{
-			/// https://storage.googleapis.com/openimages/web/download.html
-
-			// https://www.tutorialspoint.com/how-to-create-a-virtual-environment-in-python
-
-			// sudo apt install python3-virtualenv
-
-			PyObject* pInt;
-
-			Py_Initialize();
-
-			std::stringstream python_command;
-
-			python_command << std::endl << "import fiftyone as fo";
-			python_command << std::endl << "import fiftyone.zoo as foz";
-			python_command << std::endl << "";
-			python_command << std::endl << "dataset = foz.load_zoo_dataset(";
-			python_command << std::endl << "\"open-images-v6\",";
-			python_command << std::endl << "		split=\"validation\",";
-			python_command << std::endl << "		max_samples=100,";
-			python_command << std::endl << "		seed=51,";
-			python_command << std::endl << "		shuffle=True,";
-			python_command << std::endl << ")";
-
-			std::string python_command_str = python_command.str();
-			const char* python_command_cstr = python_command_str.c_str();
-
-			PyRun_SimpleString(python_command_cstr);
-
-			Py_Finalize();
-
-
-			// python3 -V
-
-			// sudo apt install python3-pip
-			// sudo apt install python3.8-venv
-			// python3 -m venv tutorial-env
-			// source tutorial-env/bin/activate
-			// python -m pip install fiftyone
-
-
-			/*
-			 import fiftyone as fo
-			import fiftyone.zoo as foz
-
-			 dataset = foz.load_zoo_dataset(
-				"open-images-v6",
-				split="validation",
-				max_samples=100,
-				seed=51,
-				shuffle=True,
-			)
-			 */
-
+			(void)images_and_txt_annotations_folder;
+			(void)weights_folder_path;
+			(void)args;
 		}
 
 		/// run YOLO v3 detection on an image
@@ -192,6 +137,85 @@ namespace yolo
 		//{
 
 		//}
+	}
+
+
+	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples)
+	{
+		/// https://storage.googleapis.com/openimages/web/download.html
+
+		const auto temp_target_folder = std::filesystem::path(target_images_folder.string() + "_tmp");
+
+		if(std::filesystem::exists(target_images_folder))
+		{
+			std::filesystem::remove(target_images_folder);
+		}
+		if(!std::filesystem::exists(temp_target_folder))
+		{
+			std::filesystem::create_directories(temp_target_folder);
+		}
+
+		// python stuff...
+		{
+			python::init_args init =
+					{
+							.print_callback = [](const std::string_view& str)
+							{
+								log(str);
+							}
+					};
+
+			log("Starting python session...");
+			auto py_instance = python::new_instance(init);
+			{
+				auto py = py_instance->code_builder();
+
+				py 	<< "print(\"opening 'fiftyone' module...\");";
+				py 	<< "";
+				py 	<< "import fiftyone as fo";
+				py 	<< "import fiftyone.zoo as foz";
+				py 	<< "from fiftyone import ViewField as F";
+				py 	<< "";
+				py 	<< "print('Downloading open images dataset...')";
+				py 	<< "dataset = foz.load_zoo_dataset(";
+				py 	<< "		\"open-images-v6\",";
+				py 	<< "		split=\"validation\",";
+				py 	<< "		label_types=[\"detections\"],";
+				py 	<< "		classes=[\"" << class_name << "\"],";
+				if(max_samples.has_value())
+				{
+					py << "		max_samples=" << *max_samples << ",";
+				}
+				py 	<< "		seed=51,";
+				py 	<< "		shuffle=True,";
+				py 	<< ")";
+				py 	<< "";
+				py 	<< "dataset_filtered = dataset.filter_labels(\"detections\", F(\"label\")==\"" << class_name << "\").filter_labels(\"detections\", F(\"IsDepiction\")==False)"; // NOLINT
+				py 	<< "";
+	//			py 	<< "for sample in dataset_filtered:"; // uncomment for help in filtering
+	//			py 	<< "	print(sample)";
+	//			py 	<< "";
+				py 	<< "print('Exporting dataset...')";
+				py 	<< "dataset_filtered.export(";
+				py 	<< "		export_dir=\"" << temp_target_folder.string() << "\",";
+				py 	<< "		dataset_type=fo.types.YOLOv4Dataset,";
+				py 	<< "		label_field=\"detections\",";
+				py 	<< ")";
+
+				py.run();
+			}
+		}
+
+		if(std::filesystem::exists(temp_target_folder / "data"))
+		{
+			std::filesystem::rename(temp_target_folder / "data", target_images_folder);
+			std::filesystem::rename(temp_target_folder / "obj.names", target_images_folder / "obj.names");
+			std::filesystem::remove_all(temp_target_folder);
+		}
+		else
+		{
+			log("Failed to obtain from open images");
+		}
 	}
 
 }
