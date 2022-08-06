@@ -179,7 +179,7 @@ namespace yolo
 				py 	<< "print('Downloading open images dataset...')";
 				py 	<< "dataset = foz.load_zoo_dataset(";
 				py 	<< "		\"open-images-v6\",";
-				py 	<< "		split=\"validation\",";
+				//py 	<< "		split=\"validation\",";
 				py 	<< "		label_types=[\"detections\"],";
 				py 	<< "		classes=[\"" << class_name << "\"],";
 				if(max_samples.has_value())
