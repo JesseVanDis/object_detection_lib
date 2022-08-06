@@ -1,5 +1,5 @@
 #include <iostream>
-#include "include/yolo.hpp"
+#include <yolo.hpp>
 #include "internal/annotations.hpp"
 #include "internal/cfg.hpp"
 #include "internal/internal.hpp"

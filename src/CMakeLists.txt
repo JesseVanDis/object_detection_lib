@@ -29,11 +29,14 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_compile_options(-Wall -Wextra -pedantic -Werror)
 
-file(GLOB_RECURSE sources *.cpp *.hpp)
+file(GLOB_RECURSE sources_lib src_lib/*.c src_lib/*.cpp src_lib/*.hpp)
+file(GLOB_RECURSE sources_cli src_cli/*.c src_cli/*.cpp src_cli/*.hpp)
 
+include_directories(../include)
 include_directories(../3rdparty/stb/include)
 include_directories(${CURL_INCLUDE_DIR})
 include_directories(${Python3_INCLUDE_DIRS})
 
-add_library(object_detection_lib ${sources})
+add_library(object_detection_lib ${sources_lib})
+add_executable(object_detection_cli ${sources_lib} ${sources_cli})
 target_link_libraries(object_detection_lib PRIVATE dark ${CURL_LIBRARIES} ${TBB_LIBRARIES} ${Python3_LIBRARIES})
