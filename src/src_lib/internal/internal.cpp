@@ -9,10 +9,10 @@
 #include <stb_image_write.h>
 #include <thread>
 #include <atomic>
-#if __GNUC_PREREQ(10,0) // if gcc 10.0 or higher
+//#if __GNUC_PREREQ(10,0) // if gcc 10.0 or higher
 #define EXECUTION_POLICY_SUPPORTED
 #include <execution>
-#endif
+//#endif
 #include "internal.hpp"
 #include "http.hpp"
 
@@ -239,7 +239,21 @@ namespace yolo
 		}
 
 		//static std::array<char, 128> str_to_c(const std::string_view& str) { std::array<char, 128> v = {0}; strncpy(v.data(), str.data(), v.size()); return v; }
-		static std::array<char, 128> str_to_c(const std::filesystem::path& str) { std::array<char, 128> v = {0}; strncpy(v.data(), str.c_str(), v.size()); return v; }
+		static std::array<char, 128> str_to_c(const std::filesystem::path& str)
+		{
+			std::array<char, 128> v = {0};
+			const auto path_str = str.string();
+			if(path_str.size() < v.size())
+			{
+				std::copy(path_str.begin(), path_str.end(), v.begin());
+				v[path_str.size()] = '\0';
+			}
+			else
+			{
+				log("Failed to convert '" + path_str + "' to c_str");
+			}
+			return v;
+		}
 
 		struct init_darknet_result
 		{
