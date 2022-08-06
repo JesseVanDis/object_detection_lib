@@ -34,6 +34,7 @@ file(GLOB_RECURSE sources_cli src_cli/*.c src_cli/*.cpp src_cli/*.hpp)
 
 include_directories(../include)
 include_directories(../3rdparty/stb/include)
+include_directories(../3rdparty/darknet/include)
 include_directories(${CURL_INCLUDE_DIR})
 include_directories(${Python3_INCLUDE_DIRS})
 

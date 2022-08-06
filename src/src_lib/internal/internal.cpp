@@ -9,7 +9,10 @@
 #include <stb_image_write.h>
 #include <thread>
 #include <atomic>
+#if __GNUC_PREREQ(10,0) // if gcc 10.0 or higher
+#define EXECUTION_POLICY_SUPPORTED
 #include <execution>
+#endif
 #include "internal.hpp"
 #include "http.hpp"
 
@@ -74,7 +77,11 @@ namespace yolo
 			const uint32_t collection_size = collection.size();
 
 			log("Converting images...");
-			std::transform(std::execution::par_unseq, collection.begin(), collection.end(), temp_collection.begin(), [&last_update_secs, &local_num_image_done, &logged_progress_once, desired_size, desired_num_channels, target_folder, collection_size, images_cache_folder](const annotations::annotations& annotations)
+			std::transform(
+#ifdef EXECUTION_POLICY_SUPPORTED
+					std::execution::par_unseq,
+#endif
+					collection.begin(), collection.end(), temp_collection.begin(), [&last_update_secs, &local_num_image_done, &logged_progress_once, desired_size, desired_num_channels, target_folder, collection_size, images_cache_folder](const annotations::annotations& annotations)
 			{
 				annotations::annotations updated = annotations;
 

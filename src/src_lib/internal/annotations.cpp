@@ -1,10 +1,8 @@
 
 #include <fstream>
 #include <algorithm>
-#include <execution>
-#include <stdio.h>
-#include <string.h>
 #include <chrono>
+#include <cstring>
 #include "annotations.hpp"
 
 namespace yolo
@@ -158,7 +156,7 @@ namespace yolo
 			int highest_class_index = -1;
 			for(const auto& a : *this)
 			{
-				auto i = std::max_element(std::execution::unseq, a.begin(), a.end(), [](const annotation& b1, const annotation& b2){return b1.class_id < b2.class_id;});
+				auto i = std::max_element(a.begin(), a.end(), [](const annotation& b1, const annotation& b2){return b1.class_id < b2.class_id;});
 				if(i != a.end())
 				{
 					highest_class_index = std::max(highest_class_index, (int)i->class_id);
