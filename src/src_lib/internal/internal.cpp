@@ -7,7 +7,7 @@
 #include "internal.hpp"
 #include "http.hpp"
 
-#ifdef GPU // Hack: not part of darknet.h, it resides somewhere in 'dark_cuda.c' but still useful function. hopefully it keeps existing.
+#ifdef GPU_SHOW_INFO
 #include <cuda_runtime.h>
 #include <curand.h>
 #include <cublas_v2.h>
@@ -193,22 +193,17 @@ namespace yolo
 			return true;
 		}
 
-#ifdef GPU // Copied and pasted mostly from 'dark_cuda.c'
+#ifdef GPU_SHOW_INFO // Hack: not part of darknet.h, it resides somewhere in 'dark_cuda.c' but still useful function. hopefully it keeps existing. getting linker errors on colab though...
 		static void show_cuda_cudnn_info()
 		{
-			int cuda_version = 0, device_count = 0;
+			int cuda_version = 0, cuda_driver_version = 0, device_count = 0;
 			cudaRuntimeGetVersion(&cuda_version);
-#ifdef CUDA_DRIVER_GET_VERSION_WORKS // doesn't work on colab... :(
-			int cuda_driver_version = 0;
 			cudaDriverGetVersion(&cuda_driver_version);
 			log("  CUDA-version: " + std::to_string(cuda_version) + " (" + std::to_string(cuda_driver_version) + ")");
 			if(cuda_version > cuda_driver_version)
 			{
 				log("Warning: CUDA-version is higher than Driver-version!");
 			}
-#else
-			log("  CUDA-version: " + std::to_string(cuda_version));
-#endif
 		#ifdef CUDNN
 			log("  cuDNN: " + std::to_string(CUDNN_MAJOR) + "." + std::to_string(CUDNN_MINOR) + "." + std::to_string(CUDNN_PATCHLEVEL));
 		#endif  // CUDNN
@@ -234,7 +229,9 @@ namespace yolo
 			log(" GPU isn't used");
 			init_cpu();
 #else
+#ifdef GPU_SHOW_INFO
 			show_cuda_cudnn_info();
+#endif
 #endif
 			s_initialized = true;
 
