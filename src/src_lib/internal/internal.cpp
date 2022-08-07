@@ -186,6 +186,10 @@ namespace yolo
 			return true;
 		}
 
+#ifdef GPU // Hack: not part of darknet.h, it resides somewhere in 'dark_cuda.c' but still useful function. hopefully it keeps existing.
+		void show_cuda_cudnn_info();
+#endif
+
 		static init_darknet_result init_darknet()
 		{
 			static init_darknet_result s_result;
@@ -200,16 +204,11 @@ namespace yolo
 			log(" GPU isn't used");
 			init_cpu();
 #else   // GPU
-			if(gpu_index >= 0){
-				cuda_set_device(gpu_index);
-				CHECK_CUDA(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
-			}
 			show_cuda_cudnn_info();
-			cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync");
 		#ifdef CUDNN_HALF
 			log(" CUDNN_HALF=1");
-		#endif  // CUDNN_HALF
-#endif  // GPU
+		#endif
+#endif
 			s_initialized = true;
 
 			s_result.gpu_index = gpu_index;
