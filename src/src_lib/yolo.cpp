@@ -84,13 +84,6 @@ namespace yolo
 			annotations::annotations_collection valid_set;
 			all_set->split_to_training_and_valid_collections(train_set, valid_set, args.validation_ratio);
 
-			// resize images / annotations
-			//const auto images_folder_resized_train = processed_dir / "train";
-			//const auto images_folder_resized_valid = processed_dir / "valid";
-
-			//resize_images_and_annotations(train_set, model_arg.image_size, model_arg.image_channels, images_folder_resized_train, cache_dir);
-			//resize_images_and_annotations(valid_set, model_arg.image_size, model_arg.image_channels, images_folder_resized_valid, cache_dir);
-
 			// to darknet format
 			const yolo_data yolo_data =
 					{
