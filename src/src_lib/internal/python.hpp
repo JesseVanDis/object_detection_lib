@@ -55,7 +55,9 @@ namespace yolo::python
 			instance& operator << (const std::string_view& python_line);
 			instance& operator << (const std::string& python_line);
 			instance& operator << (const char* python_line);
-			instance& operator << (const auto& v) { return (*this) << std::to_string(v); }
+
+			template<typename T>
+			instance& operator << (const T& v) { return (*this) << std::to_string(v); }
 
 			const init_args args;
 
