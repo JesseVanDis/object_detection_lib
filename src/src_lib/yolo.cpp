@@ -85,11 +85,11 @@ namespace yolo
 			all_set->split_to_training_and_valid_collections(train_set, valid_set, args.validation_ratio);
 
 			// resize images / annotations
-			const auto images_folder_resized_train = processed_dir / "train";
-			const auto images_folder_resized_valid = processed_dir / "valid";
+			//const auto images_folder_resized_train = processed_dir / "train";
+			//const auto images_folder_resized_valid = processed_dir / "valid";
 
-			resize_images_and_annotations(train_set, model_arg.image_size, model_arg.image_channels, images_folder_resized_train, cache_dir);
-			resize_images_and_annotations(valid_set, model_arg.image_size, model_arg.image_channels, images_folder_resized_valid, cache_dir);
+			//resize_images_and_annotations(train_set, model_arg.image_size, model_arg.image_channels, images_folder_resized_train, cache_dir);
+			//resize_images_and_annotations(valid_set, model_arg.image_size, model_arg.image_channels, images_folder_resized_valid, cache_dir);
 
 			// to darknet format
 			const yolo_data yolo_data =
@@ -101,10 +101,26 @@ namespace yolo
 							.backup = weights_folder_path
 					};
 
-			train_set.save_darknet_txt(yolo_data.train);
-			valid_set.save_darknet_txt(yolo_data.valid);
-			all_set->save_darknet_names(yolo_data.names);
-			write_yolo_data(processed_dir / "yolo.data", yolo_data);
+			if(!train_set.save_darknet_txt(yolo_data.train))
+			{
+				log("Failed to write '" + yolo_data.train.string() + "'");
+				return false;
+			}
+			if(!valid_set.save_darknet_txt(yolo_data.valid))
+			{
+				log("Failed to write '" + yolo_data.valid.string() + "'");
+				return false;
+			}
+			if(!all_set->save_darknet_names(yolo_data.names))
+			{
+				log("Failed to write '" + yolo_data.names.string() + "'");
+				return false;
+			}
+			if(!write_yolo_data(processed_dir / "yolo.data", yolo_data))
+			{
+				log("Failed to write 'yolo.data' to '" + (processed_dir / "yolo.data").string() + "'");
+				return false;
+			}
 
 			// Obtain pretrained model
 			const auto starting_weights_path = obtain_starting_weights("https://pjreddie.com/media/files/darknet53.conv.74", yolo_data.backup);

@@ -9,10 +9,9 @@
 #include <stb_image_write.h>
 #include <thread>
 #include <atomic>
-//#if __GNUC_PREREQ(10,0) // if gcc 10.0 or higher
-#define EXECUTION_POLICY_SUPPORTED
+#ifdef EXECUTION_POLICY_SUPPORTED
 #include <execution>
-//#endif
+#endif
 #include "internal.hpp"
 #include "http.hpp"
 
@@ -40,6 +39,53 @@ namespace yolo
 			s_log_function = log_function;
 		}
 
+		/*
+		void copy_images_and_annotations(annotations::annotations_collection& collection, const std::filesystem::path& target_folder, const std::optional<std::filesystem::path>& cache_folder)
+		{
+			const auto images_cache_folder = cache_folder == std::nullopt ? std::nullopt : std::make_optional(*cache_folder / (std::to_string(desired_size.first) + "_" + std::to_string(desired_size.second) + "_" +  std::to_string(desired_num_channels)));
+
+			std::filesystem::create_directories(target_folder);
+
+			std::vector<annotations::annotations> temp_collection;
+			temp_collection.resize(collection.data.size());
+			std::atomic_uint64_t last_update_secs = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			std::atomic_uint64_t local_num_image_done = 0;
+			std::atomic_bool logged_progress_once = false;
+			const uint32_t collection_size = collection.size();
+
+			log("Copying images...");
+			std::transform( collection.begin(), collection.end(), temp_collection.begin(), [&last_update_secs, &local_num_image_done, &logged_progress_once, target_folder, collection_size, images_cache_folder](const annotations::annotations& annotations)
+			{
+				annotations::annotations updated = annotations;
+
+				const auto filename_img = annotations.filename_img.filename();
+				const auto filename_txt = annotations.filename_txt.filename();
+
+				std::filesystem::copy_file(annotations.filename_txt, target_folder / filename_txt);
+				std::filesystem::copy_file(annotations.filename_img, target_folder / filename_img);
+
+				// update 'annotations'
+				updated.filename_img = target_folder / filename_img;
+				updated.filename_txt = target_folder / filename_txt;
+
+				// count
+				local_num_image_done++;
+
+				// report
+				uint64_t now_secs = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+				const auto secs_since_last_update = now_secs - last_update_secs;
+				if(secs_since_last_update > 2 || (local_num_image_done == collection_size && logged_progress_once))
+				{
+					last_update_secs = now_secs;
+					log("Copying images... progress: " + std::to_string(local_num_image_done) + " / " + std::to_string(collection_size));
+					logged_progress_once = true;
+				}
+				return updated;
+			});
+			collection.data = std::move(temp_collection);
+			log("Copying images... done!");
+		}
+		 */
 
 		void resize_images_and_annotations(annotations::annotations_collection& collection, const std::pair<uint32_t, uint32_t>& desired_size, uint32_t desired_num_channels, const std::filesystem::path& target_folder, const std::optional<std::filesystem::path>& cache_folder)
 		{
@@ -156,6 +202,13 @@ namespace yolo
 
 		bool write_yolo_data(const std::filesystem::path& dest_filepath, const yolo_data& data)
 		{
+			std::filesystem::path folder = dest_filepath;
+			folder.remove_filename();
+			if(!std::filesystem::exists(folder))
+			{
+				std::filesystem::create_directories(folder);
+			}
+
 			std::ofstream file;
 			file.open (dest_filepath);
 			if(!file.is_open())
@@ -164,12 +217,12 @@ namespace yolo
 			}
 
 			file     <<         "classes = " << data.classes;
-			file     << "\n" << "train = " << std::filesystem::canonical(std::filesystem::absolute(data.train)).string();
-			file     << "\n" << "valid = " << std::filesystem::canonical(std::filesystem::absolute(data.valid)).string();
-			file     << "\n" << "names = " << std::filesystem::canonical(std::filesystem::absolute(data.names)).string();
+			file     << "\n" << "train = " << std::filesystem::weakly_canonical(std::filesystem::absolute(data.train)).string();
+			file     << "\n" << "valid = " << std::filesystem::weakly_canonical(std::filesystem::absolute(data.valid)).string();
+			file     << "\n" << "names = " << std::filesystem::weakly_canonical(std::filesystem::absolute(data.names)).string();
 			if(data.backup.has_value())
 			{
-				file << "\n" << "backup = " << std::filesystem::canonical(std::filesystem::absolute(*data.backup)).string();
+				file << "\n" << "backup = " << std::filesystem::weakly_canonical(std::filesystem::absolute(*data.backup)).string();
 			}
 			file.close();
 			return true;
@@ -179,6 +232,10 @@ namespace yolo
 		{
 			std::optional<std::filesystem::path> latest;
 			std::optional<std::filesystem::file_time_type> latest_write_time;
+			if(!std::filesystem::exists(folder_path))
+			{
+				return std::nullopt;
+			}
 			for(const auto& filepath : std::filesystem::directory_iterator(folder_path))
 			{
 				if(filepath.path().extension() == ".weights")

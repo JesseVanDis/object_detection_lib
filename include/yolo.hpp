@@ -65,6 +65,7 @@ namespace yolo
 
 		/// same as 'train', but prints a message of instructions on how to do so on google colab, which offers good GPU's
 		/// would be cool if this could be automated trough an API or something...
+		/// visit: https://colab.research.google.com/github/JesseVanDis/object_detection_lib/blob/main/train.ipynb
 		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const model_args& args = {});
 
 		/// run YOLO v3 detection on an image

@@ -88,9 +88,8 @@ namespace yolo
 			}
 
 			annotations v;
-			v.filename_txt = filepath_txt;
-			v.filename_img = *related_image_path;
-
+			v.filename_txt = std::filesystem::weakly_canonical(std::filesystem::absolute(filepath_txt));
+			v.filename_img = std::filesystem::weakly_canonical(std::filesystem::absolute(*related_image_path));
 
 			std::string line;
 			std::ifstream file(filepath_txt);
@@ -167,6 +166,13 @@ namespace yolo
 
 		bool annotations_collection::save_darknet_txt(const std::filesystem::path& dest_filepath) const
 		{
+			std::filesystem::path folder = dest_filepath;
+			folder.remove_filename();
+			if(!std::filesystem::exists(folder))
+			{
+				std::filesystem::create_directories(folder);
+			}
+
 			std::ofstream file;
 			file.open (dest_filepath);
 			if(!file.is_open())
@@ -177,7 +183,7 @@ namespace yolo
 			bool is_first_line = true;
 			for(const auto& v : *this)
 			{
-				const auto absolute_path = std::filesystem::canonical(std::filesystem::absolute(v.filename_img));
+				const auto absolute_path = std::filesystem::weakly_canonical(std::filesystem::absolute(v.filename_img));
 				file << (is_first_line ? "" : "\n") << absolute_path.string(); // yes, only the 'filename_img'. darknet should automatically find the relevant txt file by changing the extension
 				is_first_line = false;
 			}
@@ -191,6 +197,13 @@ namespace yolo
 			if(num_of_classes == 0)
 			{
 				return false;
+			}
+
+			std::filesystem::path folder = dest_names_filepath;
+			folder.remove_filename();
+			if(!std::filesystem::exists(folder))
+			{
+				std::filesystem::create_directories(folder);
 			}
 
 			std::ofstream file;
