@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 project(object_detection_lib_all)
 include(CheckLanguage)
 
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake-modules)
 
 check_language(CUDA)
