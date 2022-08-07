@@ -196,9 +196,10 @@ namespace yolo
 #ifdef GPU // Copied and pasted mostly from 'dark_cuda.c'
 		static void show_cuda_cudnn_info()
 		{
-			int cuda_version = 0, cuda_driver_version = 0, device_count = 0;
+			int cuda_version = 0, device_count = 0;
 			cudaRuntimeGetVersion(&cuda_version);
 #ifdef CUDA_DRIVER_GET_VERSION_WORKS // doesn't work on colab... :(
+			int cuda_driver_version = 0;
 			cudaDriverGetVersion(&cuda_driver_version);
 			log("  CUDA-version: " + std::to_string(cuda_version) + " (" + std::to_string(cuda_driver_version) + ")");
 			if(cuda_version > cuda_driver_version)
