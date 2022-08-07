@@ -31,6 +31,8 @@ include_directories(../3rdparty/darknet/include)
 include_directories(${CURL_INCLUDE_DIR})
 include_directories(${Python3_INCLUDE_DIRS})
 
-add_library(object_detection_lib ${sources_lib})
+add_library(object_detection_lib STATIC ${sources_lib})
 add_executable(object_detection_cli ${sources_lib} ${sources_cli})
+
 target_link_libraries(object_detection_lib PRIVATE dark ${CURL_LIBRARIES} ${TBB_LIBRARIES} ${Python3_LIBRARIES})
+target_link_libraries(object_detection_cli PRIVATE dark stdc++ m object_detection_lib)
