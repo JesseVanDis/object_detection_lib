@@ -193,18 +193,21 @@ namespace yolo
 			return true;
 		}
 
-#ifdef GPU // Hack: not part of darknet.h, it resides somewhere in 'dark_cuda.c' but still useful function. hopefully it keeps existing.
+#ifdef GPU // Copied and pasted mostly from 'dark_cuda.c'
 		static void show_cuda_cudnn_info()
 		{
 			int cuda_version = 0, cuda_driver_version = 0, device_count = 0;
 			cudaRuntimeGetVersion(&cuda_version);
+#ifdef CUDA_DRIVER_GET_VERSION_WORKS // doesn't work on colab... :(
 			cudaDriverGetVersion(&cuda_driver_version);
-			fprintf(stderr, " CUDA-version: %d (%d)", cuda_version, cuda_driver_version);
 			log("  CUDA-version: " + std::to_string(cuda_version) + " (" + std::to_string(cuda_driver_version) + ")");
 			if(cuda_version > cuda_driver_version)
 			{
 				log("Warning: CUDA-version is higher than Driver-version!");
 			}
+#else
+			log("  CUDA-version: " + std::to_string(cuda_version));
+#endif
 		#ifdef CUDNN
 			log("  cuDNN: " + std::to_string(CUDNN_MAJOR) + "." + std::to_string(CUDNN_MINOR) + "." + std::to_string(CUDNN_PATCHLEVEL));
 		#endif  // CUDNN
