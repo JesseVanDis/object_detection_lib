@@ -7,6 +7,13 @@
 #include "internal.hpp"
 #include "http.hpp"
 
+#ifdef GPU // Hack: not part of darknet.h, it resides somewhere in 'dark_cuda.c' but still useful function. hopefully it keeps existing.
+#include <cuda_runtime.h>
+#include <curand.h>
+#include <cublas_v2.h>
+#endif
+
+
 namespace yolo
 {
 	void(*s_log_function)(const std::string_view& message) = nullptr;
@@ -187,7 +194,26 @@ namespace yolo
 		}
 
 #ifdef GPU // Hack: not part of darknet.h, it resides somewhere in 'dark_cuda.c' but still useful function. hopefully it keeps existing.
-		void show_cuda_cudnn_info();
+		static void show_cuda_cudnn_info()
+		{
+			int cuda_version = 0, cuda_driver_version = 0, device_count = 0;
+			cudaRuntimeGetVersion(&cuda_version);
+			cudaDriverGetVersion(&cuda_driver_version);
+			fprintf(stderr, " CUDA-version: %d (%d)", cuda_version, cuda_driver_version);
+			log("  CUDA-version: " + std::to_string(cuda_version) + " (" + std::to_string(cuda_driver_version) + ")");
+			if(cuda_version > cuda_driver_version)
+			{
+				log("Warning: CUDA-version is higher than Driver-version!");
+			}
+		#ifdef CUDNN
+			log("  cuDNN: " + std::to_string(CUDNN_MAJOR) + "." + std::to_string(CUDNN_MINOR) + "." + std::to_string(CUDNN_PATCHLEVEL));
+		#endif  // CUDNN
+		#ifdef CUDNN_HALF
+			log("  CUDNN_HALF=1");
+		#endif  // CUDNN_HALF
+			cudaGetDeviceCount(&device_count);
+			log("  GPU count: " + std::to_string(device_count));
+		}
 #endif
 
 		static init_darknet_result init_darknet()
@@ -203,11 +229,8 @@ namespace yolo
 			gpu_index = -1;
 			log(" GPU isn't used");
 			init_cpu();
-#else   // GPU
+#else
 			show_cuda_cudnn_info();
-		#ifdef CUDNN_HALF
-			log(" CUDNN_HALF=1");
-		#endif
 #endif
 			s_initialized = true;
 
