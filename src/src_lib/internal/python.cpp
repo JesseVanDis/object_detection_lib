@@ -1,4 +1,4 @@
-#include <python3.8/Python.h>
+#include <Python.h>
 #include <sstream>
 #include <unordered_map>
 #include "python.hpp"
