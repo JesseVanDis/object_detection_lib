@@ -26,7 +26,6 @@ else()
 endif()
 
 add_subdirectory(3rdparty/darknet)
-add_subdirectory(3rdparty/minizip)
 add_subdirectory(src)
 
 set_target_properties(dark PROPERTIES COMPILE_FLAGS "-w") # darknet ignores warnings..... so disable the spam

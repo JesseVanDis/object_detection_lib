@@ -1,3 +1,4 @@
+#ifdef PYTHON3_FOUND
 #include <Python.h>
 #include <sstream>
 #include <unordered_map>
@@ -256,3 +257,5 @@ namespace yolo::python
 		m_code = {};
 	}
 }
+
+#endif

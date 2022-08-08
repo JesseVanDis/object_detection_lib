@@ -1,6 +1,8 @@
 #ifndef ALL_YOLO_SERVER_HPP
 #define ALL_YOLO_SERVER_HPP
 
+#ifdef MINIZIP_FOUND
+
 #include <memory>
 #include <filesystem>
 #include <thread>
@@ -52,4 +54,5 @@ namespace yolo::server
 	};
 }
 
+#endif
 #endif //ALL_YOLO_SERVER_HPP

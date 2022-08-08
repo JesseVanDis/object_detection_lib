@@ -151,6 +151,7 @@ namespace yolo
 
 	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples)
 	{
+#ifdef PYTHON3_FOUND
 		/// https://storage.googleapis.com/openimages/web/download.html
 
 		const auto temp_target_folder = std::filesystem::path(target_images_folder.string() + "_tmp");
@@ -225,12 +226,19 @@ namespace yolo
 		{
 			log("Failed to obtain from open images");
 		}
+#else
+		(void)target_images_folder;
+		(void)class_name;
+		(void)max_samples;
+		log("This library was build without python. 'obtain_trainingdata_google_open_images' cannot be used");
+#endif
 	}
 
 	namespace server
 	{
 		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path)
 		{
+#ifdef MINIZIP_FOUND
 			yolo::server::init_args args = {
 					.images_and_txt_annotations_folder = images_and_txt_annotations_folder,
 					.weights_folder_path = weights_folder_path
@@ -242,6 +250,12 @@ namespace yolo
 				return nullptr;
 			}
 			return std::unique_ptr<server>(new server(std::move(t)));
+#else
+			(void)images_and_txt_annotations_folder;
+			(void)weights_folder_path;
+			log("This library was build without minizip. 'server::start' cannot be used");
+			return nullptr;
+#endif
 		}
 	}
 }

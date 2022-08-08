@@ -1,5 +1,7 @@
+#ifdef MINIZIP_FOUND
 #include <yolo.hpp>
 #include <httplib.h>
+#include <minizip/zip.h>
 #include "server.hpp"
 #include "internal.hpp"
 
@@ -13,7 +15,16 @@ namespace yolo::server
 	server::server(std::unique_ptr<server_internal>&& v) : m_internal(std::move(v)) {}
 	server::~server() = default;
 
-	static int create_zip_file(const std::vector<std::filesystem::path>& paths);
+	static bool create_zip_file(const std::filesystem::path& dest_filename, const std::vector<std::filesystem::path>& files_to_zip);
+
+	inline void read_file(const std::string &path, std::string &out) {
+		std::ifstream fs(path, std::ios_base::binary);
+		fs.seekg(0, std::ios_base::end);
+		auto size = fs.tellg();
+		fs.seekg(0);
+		out.resize(static_cast<size_t>(size));
+		fs.read(&out[0], static_cast<std::streamsize>(size));
+	}
 
 	server_internal_thread::server_internal_thread(const init_args& init_args)
 			: m_init_args(init_args)
@@ -102,7 +113,19 @@ namespace yolo::server
 				}
 			}
 
-			res.set_content("If you see this, the server is running", "text/plain");
+			const auto zip_path = std::filesystem::temp_directory_path() / "data.zip";
+			if(std::filesystem::exists(zip_path))
+			{
+				std::filesystem::remove(zip_path);
+			}
+			if(!create_zip_file(zip_path, files_to_send))
+			{
+				res.set_content("Error: failed to zip images of given range", "text/plain");
+			}
+
+			res.set_header("Content-Type", "application/zip");
+			read_file(zip_path.string(), res.body);
+			res.status = 200;
 		});
 	}
 
@@ -172,16 +195,22 @@ namespace yolo::server
 		return m_ok;
 	}
 
-	static int create_zip_file(const std::vector<std::filesystem::path>& paths)
+	static bool create_zip_file(const std::filesystem::path& dest_filename, const std::vector<std::filesystem::path>& files_to_zip)
 	{
-		zipFile zf = zipOpen(std::string(destinationPath.begin(), destinationPath.end()).c_str(), APPEND_STATUS_CREATE);
-		if (zf == NULL)
-			return 1;
+		std::string dest_filename_str = dest_filename.string();
+		const char* dest_filename_cstr = dest_filename_str.c_str();
+
+		zipFile zf = zipOpen(dest_filename_cstr, APPEND_STATUS_CREATE);
+		if (zf == nullptr)
+		{
+			return false;
+		}
 
 		bool _return = true;
-		for (size_t i = 0; i < paths.size(); i++)
+		for (size_t i = 0; i < files_to_zip.size(); i++)
 		{
-			std::fstream file(paths[i].c_str(), std::ios::binary | std::ios::in);
+			const std::string path = files_to_zip[i].string();
+			std::fstream file(path.c_str(), std::ios::binary | std::ios::in);
 			if (file.is_open())
 			{
 				file.seekg(0, std::ios::end);
@@ -191,10 +220,10 @@ namespace yolo::server
 				std::vector<char> buffer(size);
 				if (size == 0 || file.read(&buffer[0], size))
 				{
-					zip_fileinfo zfi = { 0 };
-					std::wstring fileName = paths[i].substr(paths[i].rfind('\\')+1);
+					zip_fileinfo zfi = {};
+					auto fileName = files_to_zip[i].filename().string(); //path.substr(path.rfind('\\')+1);
 
-					if (S_OK == zipOpenNewFileInZip(zf, std::string(fileName.begin(), fileName.end()).c_str(), &zfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION))
+					if (ZIP_OK == zipOpenNewFileInZip(zf, std::string(fileName.begin(), fileName.end()).c_str(), &zfi, nullptr, 0, nullptr, 0, nullptr, Z_DEFLATED, Z_NO_COMPRESSION))
 					{
 						if (zipWriteInFileInZip(zf, size == 0 ? "" : &buffer[0], size))
 							_return = false;
@@ -211,12 +240,18 @@ namespace yolo::server
 			_return = false;
 		}
 
-		if (zipClose(zf, NULL))
-			return 3;
+		if (zipClose(zf, nullptr))
+		{
+			return false;
+		}
 
 		if (!_return)
-			return 4;
-		return S_OK;
+		{
+			return false;
+		}
+		return true;
 	}
 
 }
+
+#endif

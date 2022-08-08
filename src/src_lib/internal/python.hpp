@@ -1,6 +1,8 @@
 #ifndef ALL_YOLO_PYTHON_HPP
 #define ALL_YOLO_PYTHON_HPP
 
+#ifdef PYTHON3_FOUND
+
 #include <memory>
 #include <string_view>
 #include <functional>
@@ -68,5 +70,6 @@ namespace yolo::python
 	std::unique_ptr<instance> new_instance(const init_args& init_args = {});
 }
 
+#endif
 
 #endif //ALL_YOLO_PYTHON_HPP
