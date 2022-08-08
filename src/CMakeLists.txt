@@ -35,5 +35,5 @@ include_directories(${Python3_INCLUDE_DIRS})
 add_library(object_detection_lib STATIC ${sources_lib})
 add_executable(object_detection_cli ${sources_cli})
 
-target_link_libraries(object_detection_lib PRIVATE dark ${CURL_LIBRARIES} ${TBB_LIBRARIES} ${Python3_LIBRARIES})
+target_link_libraries(object_detection_lib PRIVATE dark MINIZIP::minizip ${CURL_LIBRARIES} ${TBB_LIBRARIES} ${Python3_LIBRARIES})
 target_link_libraries(object_detection_cli PRIVATE stdc++ m object_detection_lib)
