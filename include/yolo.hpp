@@ -11,15 +11,10 @@ namespace yolo
 {
 	struct image;
 
-	/// GDrive\training_data\trays_512_rgb.zip
-	/// |- img_1.jpg
-	/// |- img_1.xml
-	/// |- img_2.jpg
-	/// |- img_2.xml
-	struct dataset
-	{
-		std::filesystem::path images_folder;
-	};
+	//struct dataset
+	//{
+	//	std::filesystem::path images_folder;
+	//};
 
 	namespace v3
 	{
@@ -73,6 +68,38 @@ namespace yolo
 
 		/// run YOLO v3 detection on an image
 		//void detect(const image& image, const std::filesystem::path& weights_filepath = "./trained.weights", const model_args& args = {});
+
+	}
+
+	namespace server
+	{
+		class server_internal;
+		class server
+		{
+			protected:
+				friend std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path);
+				explicit server(std::unique_ptr<server_internal>&& v);
+				const std::unique_ptr<server_internal> m_internal;
+			public:
+				~server();
+		};
+
+		/// sets up a server for hosting images/annotations
+		/// the folder content must look like this:
+		///     FOLDER/img1.jpg, FOLDER/img1.txt, FOLDER/img2.jpg, FOLDER/img2.txt ect...
+		/// when training happens while 'linked' to this server, the following will happen:
+		/// ( 'trainer' will be referred here as 'the machine on which the training happens' )
+		///     * If the server will share the images and annotations to the 'trainer'
+		///     * If the server will share the weights file ( if it has any )
+		///     * The 'trainer' will keep sharing the latest weights file back to the server again
+		/// This is convenient when using this with google colab, where colab can disconnect the 'trainer' at any time.
+		/// The server will close upon destruction of the returning object.
+		///
+		/// \param images_and_txt_annotations_folder folder with the images and annotations (.txt in YOLOv4 format) to train on.
+		///                                          The data inside the folder must be structured like so: 'img_1.jpg, img_1.txt, img_2.jpg, img_2.txt'. So no subdirectories, and the name of the jpg and txt must match.
+		///                                          It will automatically split into 'training' and 'eval' sections.
+		/// \param weights_folder_path
+		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights");
 
 	}
 

@@ -4,6 +4,7 @@
 #include "internal/cfg.hpp"
 #include "internal/internal.hpp"
 #include "internal/python.hpp"
+#include "internal/server.hpp"
 #include "models/yolov3.h"
 // https://colab.research.google.com/drive/1dT1xZ6tYClq4se4kOTen_u5MSHVHQ2hu
 
@@ -148,7 +149,6 @@ namespace yolo
 		//}
 	}
 
-
 	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples)
 	{
 		/// https://storage.googleapis.com/openimages/web/download.html
@@ -227,4 +227,21 @@ namespace yolo
 		}
 	}
 
+	namespace server
+	{
+		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path)
+		{
+			yolo::server::init_args args = {
+					.images_and_txt_annotations_folder = images_and_txt_annotations_folder,
+					.weights_folder_path = weights_folder_path
+			};
+
+			std::unique_ptr<server_internal> t = std::make_unique<server_internal>(std::move(args));
+			if(!t->is_running())
+			{
+				return nullptr;
+			}
+			return std::unique_ptr<server>(new server(std::move(t)));
+		}
+	}
 }
