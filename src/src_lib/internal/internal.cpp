@@ -133,6 +133,27 @@ namespace yolo
 			return pretrained_model_path;
 		}
 
+		static std::string remove_extension(const std::string& filename)
+		{
+			size_t lastdot = filename.find_last_of('.');
+			if (lastdot == std::string::npos) return filename;
+			return filename.substr(0, lastdot);
+		}
+
+		std::optional<std::filesystem::path> find_related_image_filepath(const std::filesystem::path& filepath_txt)
+		{
+			const std::string path_without_extension = remove_extension(filepath_txt);
+			if(std::filesystem::exists(path_without_extension + ".png"))
+			{
+				return path_without_extension + ".png";
+			}
+			if(std::filesystem::exists(path_without_extension + ".jpg"))
+			{
+				return path_without_extension + ".jpg";
+			}
+			return std::nullopt;
+		}
+
 		//static std::array<char, 128> str_to_c(const std::string_view& str) { std::array<char, 128> v = {0}; strncpy(v.data(), str.data(), v.size()); return v; }
 		static std::array<char, 128> str_to_c(const std::filesystem::path& str)
 		{

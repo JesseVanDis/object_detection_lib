@@ -34,6 +34,7 @@ namespace yolo::internal
 	std::optional<std::filesystem::path> 	find_latest_backup_weights(const std::filesystem::path& folder_path);
 	bool 									start_darknet_training(const std::filesystem::path& model_cfg_data, const cfg::cfg& model_cfg, const std::filesystem::path& starting_weights, const darknet_training_args& args = {});
 	std::optional<std::filesystem::path> 	obtain_starting_weights(const std::string& pretrained_weights_url, const std::optional<std::filesystem::path>& backup_path, const std::optional<std::filesystem::path>& download_target_path = std::nullopt);
+	std::optional<std::filesystem::path> 	find_related_image_filepath(const std::filesystem::path& filepath_txt);
 
 }
 

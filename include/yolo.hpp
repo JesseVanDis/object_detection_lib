@@ -11,11 +11,6 @@ namespace yolo
 {
 	struct image;
 
-	//struct dataset
-	//{
-	//	std::filesystem::path images_folder;
-	//};
-
 	namespace v3
 	{
 		/// usefull link: https://medium.com/@quangnhatnguyenle/how-to-train-yolov3-on-google-colab-to-detect-custom-objects-e-g-gun-detection-d3a1ee43eda1
@@ -99,6 +94,7 @@ namespace yolo
 		///                                          The data inside the folder must be structured like so: 'img_1.jpg, img_1.txt, img_2.jpg, img_2.txt'. So no subdirectories, and the name of the jpg and txt must match.
 		///                                          It will automatically split into 'training' and 'eval' sections.
 		/// \param weights_folder_path
+		/// \return nullptr or server object. If null, the starting of the server failed. If not null, server is up and will close upon destruction of this object.
 		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights");
 
 	}

@@ -3,8 +3,6 @@
 #include <unordered_map>
 #include "python.hpp"
 
-
-
 namespace yolo
 {
 	void log(const std::string_view& message);

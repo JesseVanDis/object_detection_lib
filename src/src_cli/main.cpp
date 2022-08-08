@@ -64,6 +64,14 @@ namespace yolo::internal
 			yolo::obtain_trainingdata_google_open_images(v->at(1), v->at(0), atoi(v->at(2)));
 		}
 
+		if(auto v = find_arg_values<1>(argc, argv, "--server"))
+		{
+			if(auto p_server = yolo::server::start(v->at(0)))
+			{
+				getchar(); // just wait for a key fow now. server will stay active until then.
+			}
+		}
+
 		if(const char* folder = find_arg_value(argc, argv, "--train_yolov3"))
 		{
 			yolo::v3::train(folder);
@@ -97,7 +105,7 @@ namespace yolo::internal
 		{
 			if((*k)+NumValues < argc)
 			{
-				for(int i=*k+1, j=0; i<*k+NumValues; i++, j++)
+				for(int i=*k+1, j=0; i<std::min(argc, *k+(NumValues+1)); i++, j++)
 				{
 					v[j] = argv[i];
 				}

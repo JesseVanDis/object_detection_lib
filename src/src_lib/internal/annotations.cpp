@@ -4,12 +4,11 @@
 #include <chrono>
 #include <cstring>
 #include "annotations.hpp"
+#include "internal.hpp"
 
 namespace yolo
 {
 	void log(const std::string_view& message);
-
-	static std::optional<std::filesystem::path> find_related_image_filepath(const std::filesystem::path& filepath_txt);
 
 	namespace annotations
 	{
@@ -80,7 +79,7 @@ namespace yolo
 				return std::nullopt;
 			}
 
-			auto related_image_path = find_related_image_filepath(filepath_txt);
+			auto related_image_path = internal::find_related_image_filepath(filepath_txt);
 			if(!related_image_path.has_value())
 			{
 				log("Failed to find the image related to '" + filepath_txt.string() + "'. ( image must be txt filename, with png or jpg extension, and should be in the same folder )");
@@ -258,27 +257,6 @@ namespace yolo
 				log("WARNING: We have no evaluation data. Make sure the validation_ratio is high enough");
 			}
 		}
-	}
-
-	static std::string remove_extension(const std::string& filename)
-	{
-		size_t lastdot = filename.find_last_of('.');
-		if (lastdot == std::string::npos) return filename;
-		return filename.substr(0, lastdot);
-	}
-
-	static std::optional<std::filesystem::path> find_related_image_filepath(const std::filesystem::path& filepath_txt)
-	{
-		const std::string path_without_extension = remove_extension(filepath_txt);
-		if(std::filesystem::exists(path_without_extension + ".png"))
-		{
-			return path_without_extension + ".png";
-		}
-		if(std::filesystem::exists(path_without_extension + ".jpg"))
-		{
-			return path_without_extension + ".jpg";
-		}
-		return std::nullopt;
 	}
 
 }
