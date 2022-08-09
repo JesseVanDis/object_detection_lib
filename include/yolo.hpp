@@ -66,7 +66,7 @@ namespace yolo
 
 	}
 
-	namespace server
+	namespace http::server
 	{
 		class server_internal;
 		class server
@@ -96,8 +96,12 @@ namespace yolo
 		/// \param weights_folder_path
 		/// \return nullptr or server object. If null, the starting of the server failed. If not null, server is up and will close upon destruction of this object.
 		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights");
-
 	}
+
+	/// pull training data from a server ( with --server )
+	/// \param server example: "http://192.168.1.3:8080"
+	/// \return returns the path to which it downloaded the data. or nullopt of the downloading failed
+	std::optional<std::filesystem::path> obtain_trainingdata_server(const std::string_view& server);
 
 	/// downloads an existing dataset from google open images, with the matched tags. It will use the opensource tool FiftyOne
 	/// \param target_images_folder Target folder to save the images and notation files to. Format will be YOLOv4 (img1.jpg, img1.txt, img2.jpg, img2.txt ect... no sub-folders)

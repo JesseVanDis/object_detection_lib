@@ -2,7 +2,7 @@
 #include <yolo.hpp>
 #include <httplib.h>
 #include <minizip/zip.h>
-#include "server.hpp"
+#include "http_server.hpp"
 #include "internal.hpp"
 
 namespace yolo
@@ -10,7 +10,7 @@ namespace yolo
 	void log(const std::string_view& message);
 }
 
-namespace yolo::server
+namespace yolo::http::server
 {
 	server::server(std::unique_ptr<server_internal>&& v) : m_internal(std::move(v)) {}
 	server::~server() = default;
@@ -137,7 +137,6 @@ namespace yolo::server
 	server_internal_thread::~server_internal_thread()
 	{
 		close();
-		log("Server closed");
 	}
 
 	bool server_internal_thread::is_running() const

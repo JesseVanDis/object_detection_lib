@@ -17,6 +17,7 @@ namespace yolo::http
 	};
 
 	bool download(const std::string_view& url, const std::filesystem::path& dest_filepath, bool overwrite = false, const std::optional<std::function<void(const progress& progress)>>& progress_callback = std::nullopt);
+	bool download(const std::string_view& url, std::vector<uint8_t>& dest, const std::optional<std::function<void(const progress& progress)>>& progress_callback = std::nullopt);
 }
 
 

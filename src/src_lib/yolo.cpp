@@ -4,7 +4,7 @@
 #include "internal/cfg.hpp"
 #include "internal/internal.hpp"
 #include "internal/python.hpp"
-#include "internal/server.hpp"
+#include "internal/http_server.hpp"
 #include "models/yolov3.h"
 // https://colab.research.google.com/drive/1dT1xZ6tYClq4se4kOTen_u5MSHVHQ2hu
 
@@ -149,6 +149,25 @@ namespace yolo
 		//}
 	}
 
+	std::optional<std::filesystem::path> obtain_trainingdata_server(const std::string_view& server)
+	{
+		if(server.empty())
+		{
+			return std::nullopt;
+		}
+		if(!server.starts_with("http"))
+		{
+			return server; // not an url
+		}
+		const std::filesystem::path tmp = std::filesystem::temp_directory_path() / "data_from_server";
+		if(internal::obtain_trainingdata_server(server, tmp))
+		{
+			return tmp;
+		}
+		return std::nullopt;
+	}
+
+
 	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples)
 	{
 #ifdef PYTHON3_FOUND
@@ -234,12 +253,12 @@ namespace yolo
 #endif
 	}
 
-	namespace server
+	namespace http::server
 	{
 		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path)
 		{
 #ifdef MINIZIP_FOUND
-			yolo::server::init_args args = {
+			yolo::http::server::init_args args = {
 					.images_and_txt_annotations_folder = images_and_txt_annotations_folder,
 					.weights_folder_path = weights_folder_path
 			};

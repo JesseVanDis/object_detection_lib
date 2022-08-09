@@ -12,7 +12,7 @@ namespace httplib
 	class Server;
 }
 
-namespace yolo::server
+namespace yolo::http::server
 {
 	class server_internal_thread;
 

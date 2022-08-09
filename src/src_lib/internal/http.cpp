@@ -3,6 +3,7 @@
 #include <iostream>
 #include <curl/curl.h>
 #include <cassert>
+#include <span>
 #include "http.hpp"
 
 namespace yolo
@@ -38,10 +39,8 @@ namespace yolo
 
 				if(p_writer_dest->p_data != nullptr)
 				{
-					for(size_t i=0; i<size * nmemb; i++)
-					{
-						p_writer_dest->p_data->push_back(data[i]);
-					}
+					std::span<uint8_t> data_span((uint8_t*)data, size * nmemb);
+					p_writer_dest->p_data->insert(p_writer_dest->p_data->end(), data_span.begin(), data_span.end());
 				}
 				if(p_writer_dest->p_ofstream != nullptr)
 				{
@@ -88,52 +87,76 @@ namespace yolo
 			return 0;
 		}
 
-		bool download(const std::string_view& url, const std::filesystem::path& dest_filepath, bool overwrite, const std::optional<std::function<void(const progress& progress)>>& progress_callback)
+
+		bool download(const std::string_view& url, std::optional<std::filesystem::path> dest_filepath, std::vector<uint8_t>* dest_data, bool overwrite, const std::optional<std::function<void(const progress& progress)>>& progress_callback)
 		{
 			char errorBuffer[CURL_ERROR_SIZE];
 
-			auto temp_filepath = dest_filepath.string() + ".tmp";
 			log("Downloading '" + std::string(url) + "'...");
-
-			if(std::filesystem::exists(temp_filepath))
-			{
-				std::filesystem::remove(dest_filepath);
-			}
-			if(std::filesystem::exists(dest_filepath))
-			{
-				if(!overwrite)
-				{
-					log("Download failed. '" + dest_filepath.string() + "' already exists");
-					return false;
-				}
-				else
-				{
-					std::filesystem::remove(dest_filepath);
-				}
-			}
 
 			CURL *curl;
 			CURLcode result;
 			curl = curl_easy_init();
-			if (curl)
+
+			if(curl == nullptr)
 			{
-				const auto folder = dest_filepath.parent_path();
+				log("Failed to init CURL");
+				return false;
+			}
+
+			struct dest_url
+			{
+				std::filesystem::path dest_filepath;
+				std::string temp_filepath;
+				std::ofstream file;
+			};
+
+			std::optional<dest_url> dest_url_opt;
+
+			if(dest_filepath.has_value())
+			{
+				dest_url_opt = dest_url {
+						.dest_filepath = *dest_filepath,
+						.temp_filepath = dest_filepath->string() + ".tmp",
+						.file = {}
+				};
+				if(std::filesystem::exists(dest_url_opt->temp_filepath))
+				{
+					std::filesystem::remove(dest_url_opt->dest_filepath);
+				}
+				if(std::filesystem::exists(dest_url_opt->dest_filepath))
+				{
+					if(!overwrite)
+					{
+						log("Download failed. '" + dest_url_opt->dest_filepath.string() + "' already exists");
+						return false;
+					}
+					else
+					{
+						std::filesystem::remove(dest_url_opt->dest_filepath);
+					}
+				}
+				const auto folder = dest_url_opt->dest_filepath.parent_path();
 				if(!std::filesystem::exists(folder))
 				{
 					std::filesystem::create_directories(folder);
 				}
-				std::ofstream file(temp_filepath, std::ios::out | std::ios::binary);
+				std::ofstream file(dest_url_opt->temp_filepath, std::ios::out | std::ios::binary);
 				if(!file)
 				{
-					log("Download failed. Failed to open '" + temp_filepath + "'");
+					log("Download failed. Failed to open '" + dest_url_opt->temp_filepath + "'");
 					return false;
 				}
+				dest_url_opt->file = std::move(file);
+			}
 
+			// curl stuff
+			{
 				progress_callback_args progress_args;
 
 				writer_dest dest_args = {
-						.p_data = nullptr,
-						.p_ofstream = &file,
+						.p_data = dest_data,
+						.p_ofstream = dest_url_opt.has_value() ? &dest_url_opt->file : nullptr,
 						.p_callback = progress_callback.has_value() ? &(*progress_callback) : nullptr,
 						.p_progress_args = &progress_args
 				};
@@ -158,38 +181,48 @@ namespace yolo
 				// Always cleanup
 				curl_easy_cleanup(curl);
 
-				file.close();
+			}
+
+			if(dest_url_opt.has_value())
+			{
+				dest_url_opt->file.close();
 
 				// Did we succeed?
 				if (result == CURLE_OK)
 				{
-					if(std::filesystem::exists(temp_filepath))
+					if(std::filesystem::exists(dest_url_opt->temp_filepath))
 					{
-						std::filesystem::rename(temp_filepath, dest_filepath);
+						std::filesystem::rename(dest_url_opt->temp_filepath, dest_url_opt->dest_filepath);
 					}
-					return true;
 				}
 				else
 				{
-					if(std::filesystem::exists(dest_filepath))
+					if(std::filesystem::exists(dest_url_opt->dest_filepath))
 					{
-						std::filesystem::remove(dest_filepath);
+						std::filesystem::remove(dest_url_opt->dest_filepath);
 					}
-					if(std::filesystem::exists(temp_filepath))
+					if(std::filesystem::exists(dest_url_opt->temp_filepath))
 					{
-						std::filesystem::remove(temp_filepath);
+						std::filesystem::remove(dest_url_opt->temp_filepath);
 					}
 					log("Download failed. CURL error: '" + std::string(errorBuffer) + "'");
 					return false;
 				}
 			}
-			else
-			{
-				log("Failed to init CURL");
-				return false;
-			}
 
+			log("Downloading '" + std::string(url) + "'... Done!");
 			return true;
 		}
+
+		bool download(const std::string_view& url, std::vector<uint8_t>& dest, const std::optional<std::function<void(const progress& progress)>>& progress_callback)
+		{
+			return download(url, std::nullopt, &dest, false, progress_callback);
+		}
+
+		bool download(const std::string_view& url, const std::filesystem::path& dest_filepath, bool overwrite, const std::optional<std::function<void(const progress& progress)>>& progress_callback)
+		{
+			return download(url, dest_filepath, nullptr, overwrite, progress_callback);
+		}
+
 	}
 }

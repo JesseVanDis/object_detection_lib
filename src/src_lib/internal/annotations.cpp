@@ -5,6 +5,7 @@
 #include <cstring>
 #include "annotations.hpp"
 #include "internal.hpp"
+#include "http.hpp"
 
 namespace yolo
 {
@@ -257,6 +258,7 @@ namespace yolo
 				log("WARNING: We have no evaluation data. Make sure the validation_ratio is high enough");
 			}
 		}
+
 	}
 
 }

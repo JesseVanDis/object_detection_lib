@@ -4,6 +4,7 @@
 #include <fstream>
 #include <darknet.h>
 #include <thread>
+#include <map>
 #include "internal.hpp"
 #include "http.hpp"
 
@@ -211,6 +212,154 @@ namespace yolo
 					args.benchmark_layers ? 1 : 0,
 					chart_path_c[0] == '\0' ? nullptr : chart_path_c.data());
 
+			return true;
+		}
+
+		static bool parse_images_list_line(std::string& line, unsigned int& index_out, std::string& image_name_out)
+		{
+			line.push_back('\0');
+			char* line_cstr = line.data();
+			for(size_t i=0; i<line.size(); i++)
+			{
+				if(line_cstr[i] == ':')
+				{
+					line_cstr[i] = '\0';
+					index_out = atoll(line_cstr);
+					image_name_out = &line_cstr[i+1];
+					return true;
+				}
+			}
+			return false;
+		}
+
+		static std::optional<std::map<unsigned int, std::string>> download_images_list(const std::string_view& server_and_port)
+		{
+			std::vector<uint8_t> images_list_data;
+			if(!http::download(std::string(server_and_port) + "/get_images_list", images_list_data))
+			{
+				return std::nullopt;
+			}
+			std::map<unsigned int, std::string> map;
+
+			std::string line;
+			unsigned int index = ~0u;
+			std::string image_name;
+			for(auto& v : images_list_data)
+			{
+				if(v != '\n')
+				{
+					line.push_back((char)v);
+				}
+				else
+				{
+					if(parse_images_list_line(line, index, image_name))
+					{
+						map.insert({index, image_name});
+					}
+					line.clear();
+				}
+			}
+			if(!line.empty())
+			{
+				if(parse_images_list_line(line, index, image_name))
+				{
+					map.insert({index, image_name});
+				}
+			}
+			return map;
+		}
+
+		bool obtain_trainingdata_server(const std::string_view& server_and_port, const std::filesystem::path& dest_path, const std::function<void(const obtain_data_from_server_progress& progress)>& progress_callback)
+		{
+			static const size_t s_max_images_per_batch = 100;
+			if(!std::filesystem::exists(dest_path))
+			{
+				std::filesystem::create_directories(dest_path);
+			}
+
+			auto images_list = download_images_list(server_and_port);
+			if(!images_list.has_value() || images_list->empty())
+			{
+				return false;
+			}
+
+			// obtain missing images
+			std::vector<unsigned int> missing_images;
+			{
+				for(const auto& v : *images_list)
+				{
+					if(!std::filesystem::exists(dest_path / (v.second + ".txt")))
+					{
+						missing_images.push_back(v.first);
+					}
+				}
+				if(missing_images.empty())
+				{
+					return true; // all images already obtained
+				}
+				std::sort(missing_images.begin(), missing_images.end());
+			}
+
+			// split 'missing_images' to batches
+			std::vector<std::pair<unsigned int, unsigned int>> batches;
+			{
+				bool started_batch = false;
+				unsigned int from = missing_images[0];
+				unsigned int previous = ~0u;
+				for(size_t i=0; i<missing_images.size(); i++)
+				{
+					bool is_end_of_batch = false;
+					if(!started_batch)
+					{
+						from = missing_images[i];
+						previous = missing_images[i];
+						started_batch = true;
+						continue;
+					}
+					is_end_of_batch |= (missing_images[i] != (previous+1));
+					is_end_of_batch |= (missing_images[i] - from) >= (s_max_images_per_batch-1);
+					is_end_of_batch |= i == (missing_images.size()-1);
+					previous = missing_images[i];
+					if(is_end_of_batch)
+					{
+						batches.emplace_back(from, missing_images[i]);
+						started_batch = false;
+					}
+				}
+			}
+
+			// download the missing image batches
+			{
+				for(const auto& v : batches)
+				{
+					std::string filename = std::to_string(v.first) + "_" + std::to_string(v.second) + ".zip";
+					http::download(std::string(server_and_port) + "/get_images?from=" + std::to_string(v.first) + "&to=" + std::to_string(v.second), dest_path / filename, true);
+				}
+			}
+
+			(void)progress_callback;
+
+			return true;
+		}
+
+		bool obtain_trainingdata_server(const std::string_view& server_and_port, const std::filesystem::path& dest_path)
+		{
+			auto last_status_update = std::chrono::system_clock::now();
+			log("downloading data from '" + std::string(server_and_port) + "'...");
+			const bool ok = obtain_trainingdata_server(server_and_port, dest_path, [&](const obtain_data_from_server_progress& progress)
+			{
+				const auto now = std::chrono::system_clock::now();
+				if(now - last_status_update > std::chrono::seconds(1))
+				{
+					log("downloading data from '" + std::string(server_and_port) + "'... [" + std::to_string(progress.num_images_obtained) + "\\" + std::to_string(progress.total_num_images) + "]");
+				}
+			});
+			if(!ok)
+			{
+				log("downloading data from '" + std::string(server_and_port) + "'... Failed!");
+				return false;
+			}
+			log("downloading data from '" + std::string(server_and_port) + "'... Done!");
 			return true;
 		}
 

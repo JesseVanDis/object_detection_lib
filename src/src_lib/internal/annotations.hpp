@@ -69,8 +69,10 @@ namespace yolo::annotations
 								/// \param ratio  split ratio. range 0 - 1.  the smaller the value, the less evaluations
 		void 					split_to_training_and_valid_collections(annotations_collection& dest_training, annotations_collection& dest_eval, float ratio) const;
 
+		/// \param server_or_folder_path example: "/home/me/data"
 		static std::optional<annotations_collection> load(const std::filesystem::path& folder_path);
 	};
+
 }
 
 #endif //ALL_YOLO_ANNOTATIONS_HPP

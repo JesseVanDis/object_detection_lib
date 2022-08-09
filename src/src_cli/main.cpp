@@ -7,6 +7,7 @@ namespace yolo::internal
 {
 	static std::optional<int> find_arg(int argc, const char** argv, const char *arg);
 	static const char* find_arg_value(int argc, const char** argv, const char *arg);
+	static std::string str(const char* cstr);
 
 	template<int NumValues>
 	static std::optional<std::array<const char*, NumValues>> find_arg_values(int argc, const char** argv, const char *arg);
@@ -64,17 +65,21 @@ namespace yolo::internal
 			yolo::obtain_trainingdata_google_open_images(v->at(1), v->at(0), atoi(v->at(2)));
 		}
 
+#if 1
+		auto p_server = yolo::http::server::start("/home/jesse/MainSVN/catwatch_data/data");
+#else
 		if(auto v = find_arg_values<1>(argc, argv, "--server"))
 		{
-			if(auto p_server = yolo::server::start(v->at(0)))
+			if(auto p_server = yolo::http::server::start(v->at(0)))
 			{
 				getchar(); // just wait for a key fow now. server will stay active until then.
 			}
 		}
+#endif
 
-		if(const char* folder = find_arg_value(argc, argv, "--train_yolov3"))
+		if(auto folder = yolo::obtain_trainingdata_server(str(find_arg_value(argc, argv, "--train_yolov3"))))
 		{
-			yolo::v3::train(folder);
+			yolo::v3::train(*folder);
 		}
 
 		//yolo::obtain_trainingdata_google_open_images("/home/jesse/MainSVN/catwatch_data/open_images", "Cat", 10000);
@@ -122,6 +127,11 @@ namespace yolo::internal
 			return (*v)[0];
 		}
 		return nullptr;
+	}
+
+	static std::string str(const char* cstr)
+	{
+		return cstr == nullptr ? "" : cstr;
 	}
 }
 
