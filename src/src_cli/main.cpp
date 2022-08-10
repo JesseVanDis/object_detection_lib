@@ -65,7 +65,7 @@ namespace yolo::internal
 			yolo::obtain_trainingdata_google_open_images(v->at(1), v->at(0), atoi(v->at(2)));
 		}
 
-#if 1
+#if 0 // set to '1' to test server
 		auto p_server = yolo::http::server::start("/home/jesse/MainSVN/catwatch_data/data");
 #else
 		if(auto v = find_arg_values<1>(argc, argv, "--server"))

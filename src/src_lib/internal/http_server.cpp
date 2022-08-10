@@ -1,9 +1,9 @@
 #ifdef MINIZIP_FOUND
 #include <yolo.hpp>
 #include <httplib.h>
-#include <minizip/zip.h>
 #include "http_server.hpp"
 #include "internal.hpp"
+#include "zip.hpp"
 
 namespace yolo
 {
@@ -14,8 +14,6 @@ namespace yolo::http::server
 {
 	server::server(std::unique_ptr<server_internal>&& v) : m_internal(std::move(v)) {}
 	server::~server() = default;
-
-	static bool create_zip_file(const std::filesystem::path& dest_filename, const std::vector<std::filesystem::path>& files_to_zip);
 
 	inline void read_file(const std::string &path, std::string &out) {
 		std::ifstream fs(path, std::ios_base::binary);
@@ -118,7 +116,7 @@ namespace yolo::http::server
 			{
 				std::filesystem::remove(zip_path);
 			}
-			if(!create_zip_file(zip_path, files_to_send))
+			if(!zip::create_zip_file(zip_path, files_to_send))
 			{
 				res.set_content("Error: failed to zip images of given range", "text/plain");
 			}
@@ -192,63 +190,6 @@ namespace yolo::http::server
 	bool server_internal::is_running() const
 	{
 		return m_ok;
-	}
-
-	static bool create_zip_file(const std::filesystem::path& dest_filename, const std::vector<std::filesystem::path>& files_to_zip)
-	{
-		std::string dest_filename_str = dest_filename.string();
-		const char* dest_filename_cstr = dest_filename_str.c_str();
-
-		zipFile zf = zipOpen(dest_filename_cstr, APPEND_STATUS_CREATE);
-		if (zf == nullptr)
-		{
-			return false;
-		}
-
-		bool _return = true;
-		for (size_t i = 0; i < files_to_zip.size(); i++)
-		{
-			const std::string path = files_to_zip[i].string();
-			std::fstream file(path.c_str(), std::ios::binary | std::ios::in);
-			if (file.is_open())
-			{
-				file.seekg(0, std::ios::end);
-				long size = file.tellg();
-				file.seekg(0, std::ios::beg);
-
-				std::vector<char> buffer(size);
-				if (size == 0 || file.read(&buffer[0], size))
-				{
-					zip_fileinfo zfi = {};
-					auto fileName = files_to_zip[i].filename().string(); //path.substr(path.rfind('\\')+1);
-
-					if (ZIP_OK == zipOpenNewFileInZip(zf, std::string(fileName.begin(), fileName.end()).c_str(), &zfi, nullptr, 0, nullptr, 0, nullptr, Z_DEFLATED, Z_NO_COMPRESSION))
-					{
-						if (zipWriteInFileInZip(zf, size == 0 ? "" : &buffer[0], size))
-							_return = false;
-
-						if (zipCloseFileInZip(zf))
-							_return = false;
-
-						file.close();
-						continue;
-					}
-				}
-				file.close();
-			}
-			_return = false;
-		}
-
-		if (zipClose(zf, nullptr))
-		{
-			return false;
-		}
-
-		if (!_return)
-		{
-			return false;
-		}
-		return true;
 	}
 
 }

@@ -7,6 +7,7 @@
 #include <map>
 #include "internal.hpp"
 #include "http.hpp"
+#include "zip.hpp"
 
 #ifdef GPU_SHOW_INFO
 #include <cuda_runtime.h>
@@ -303,41 +304,51 @@ namespace yolo
 			// split 'missing_images' to batches
 			std::vector<std::pair<unsigned int, unsigned int>> batches;
 			{
-				bool started_batch = false;
 				unsigned int from = missing_images[0];
 				unsigned int previous = ~0u;
 				for(size_t i=0; i<missing_images.size(); i++)
 				{
 					bool is_end_of_batch = false;
-					if(!started_batch)
-					{
-						from = missing_images[i];
-						previous = missing_images[i];
-						started_batch = true;
-						continue;
-					}
 					is_end_of_batch |= (missing_images[i] != (previous+1));
 					is_end_of_batch |= (missing_images[i] - from) >= (s_max_images_per_batch-1);
 					is_end_of_batch |= i == (missing_images.size()-1);
 					previous = missing_images[i];
+
 					if(is_end_of_batch)
 					{
 						batches.emplace_back(from, missing_images[i]);
-						started_batch = false;
+						from = missing_images[std::min((int)i+1, (int)missing_images.size()-1)];
 					}
 				}
 			}
 
 			// download the missing image batches
 			{
+				size_t total_num_images = 0;
+				size_t num_images_done = 0;
+				for(const auto& v : batches)
+				{
+					total_num_images += (v.second - v.first)+1;
+				}
 				for(const auto& v : batches)
 				{
 					std::string filename = std::to_string(v.first) + "_" + std::to_string(v.second) + ".zip";
-					http::download(std::string(server_and_port) + "/get_images?from=" + std::to_string(v.first) + "&to=" + std::to_string(v.second), dest_path / filename, true);
+					const std::filesystem::path dest_file = dest_path / filename;
+					http::download(std::string(server_and_port) + "/get_images?from=" + std::to_string(v.first) + "&to=" + std::to_string(v.second), dest_file, true, std::nullopt, true);
+					if(std::filesystem::exists(dest_file))
+					{
+						zip::extract_zip_file(dest_file, dest_path);
+						std::filesystem::remove(dest_file);
+					}
+					num_images_done += (v.second - v.first)+1;
+
+					obtain_data_from_server_progress progress = {
+							.num_images_obtained = num_images_done,
+							.total_num_images = total_num_images
+					};
+					progress_callback(progress);
 				}
 			}
-
-			(void)progress_callback;
 
 			return true;
 		}

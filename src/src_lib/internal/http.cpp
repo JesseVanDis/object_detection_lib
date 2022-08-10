@@ -88,11 +88,14 @@ namespace yolo
 		}
 
 
-		bool download(const std::string_view& url, std::optional<std::filesystem::path> dest_filepath, std::vector<uint8_t>* dest_data, bool overwrite, const std::optional<std::function<void(const progress& progress)>>& progress_callback)
+		bool download(const std::string_view& url, std::optional<std::filesystem::path> dest_filepath, std::vector<uint8_t>* dest_data, bool overwrite, const std::optional<std::function<void(const progress& progress)>>& progress_callback, bool silent)
 		{
 			char errorBuffer[CURL_ERROR_SIZE];
 
-			log("Downloading '" + std::string(url) + "'...");
+			if(!silent)
+			{
+				log("Downloading '" + std::string(url) + "'...");
+			}
 
 			CURL *curl;
 			CURLcode result;
@@ -210,18 +213,21 @@ namespace yolo
 				}
 			}
 
-			log("Downloading '" + std::string(url) + "'... Done!");
+			if(!silent)
+			{
+				log("Downloading '" + std::string(url) + "'... Done!");
+			}
 			return true;
 		}
 
-		bool download(const std::string_view& url, std::vector<uint8_t>& dest, const std::optional<std::function<void(const progress& progress)>>& progress_callback)
+		bool download(const std::string_view& url, std::vector<uint8_t>& dest, const std::optional<std::function<void(const progress& progress)>>& progress_callback, bool silent)
 		{
-			return download(url, std::nullopt, &dest, false, progress_callback);
+			return download(url, std::nullopt, &dest, false, progress_callback, silent);
 		}
 
-		bool download(const std::string_view& url, const std::filesystem::path& dest_filepath, bool overwrite, const std::optional<std::function<void(const progress& progress)>>& progress_callback)
+		bool download(const std::string_view& url, const std::filesystem::path& dest_filepath, bool overwrite, const std::optional<std::function<void(const progress& progress)>>& progress_callback, bool silent)
 		{
-			return download(url, dest_filepath, nullptr, overwrite, progress_callback);
+			return download(url, dest_filepath, nullptr, overwrite, progress_callback, silent);
 		}
 
 	}
