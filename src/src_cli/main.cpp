@@ -8,6 +8,7 @@ namespace yolo::internal
 	static std::optional<int> find_arg(int argc, const char** argv, const char *arg);
 	static const char* find_arg_value(int argc, const char** argv, const char *arg);
 	static std::string str(const char* cstr);
+	static std::optional<std::string> str_opt(const char* cstr);
 
 	template<int NumValues>
 	static std::optional<std::array<const char*, NumValues>> find_arg_values(int argc, const char** argv, const char *arg);
@@ -39,7 +40,20 @@ namespace yolo::internal
 		std::cout << "                                     --train_yolov3 ./data" << std::endl;
 		std::cout << "                                     --train_yolov3 192.168.1.3:9090" << std::endl;
 		std::cout << "" << std::endl;
-		std::cout << "	--server [folder-path]         sets up a server for hosting images/annotations" << std::endl;
+		std::cout << "	--train_yolov3_colab [folder-path] [port (optional)]" << std::endl;
+		std::cout << "                                 same as 'train_yolov3' however:" << std::endl;
+		std::cout << "                                 this pc will *not* do the training, but will server as a datahost for" << std::endl;
+		std::cout << "                                 syncing weights and annotation/image data to the 'trainer' pc." << std::endl;
+		std::cout << "                                 The trainer pc will be a google colab, at this has sufficient GPU's" << std::endl;
+		std::cout << "                                 The terminal will prompt on how to continue once you run this. " << std::endl;
+		std::cout << "                                 Should be as easy as clicking a 'https://colab.research.google.com' link, " << std::endl;
+		std::cout << "                                 and filling some form info before running. " << std::endl;
+		std::cout << "                                 examples:" << std::endl;
+		std::cout << "                                     --train_yolov3_colab ./data 9090" << std::endl;
+		std::cout << "                                     --train_yolov3_colab ./data" << std::endl;
+		std::cout << "" << std::endl;
+		std::cout << "	--server [folder-path] [port (optional)]" << std::endl;
+		std::cout << "                                 sets up a server for hosting images/annotations" << std::endl;
 		std::cout << "                                 the folder content must look like this:" << std::endl;
 		std::cout << "                                     FOLDER/img1.jpg, FOLDER/img1.txt, FOLDER/img2.jpg, FOLDER/img2.txt ect..." << std::endl;
 		std::cout << "                                 when training happens while 'linked' to this server, the following will happen:" << std::endl;
@@ -68,7 +82,7 @@ namespace yolo::internal
 #if 0 // set to '1' to test server
 		auto p_server = yolo::http::server::start("/home/jesse/MainSVN/catwatch_data/data");
 #else
-		if(auto v = find_arg_values<1>(argc, argv, "--server"))
+		if(auto v = find_arg_values<2>(argc, argv, "--server"))
 		{
 			if(auto p_server = yolo::http::server::start(v->at(0)))
 			{
@@ -76,6 +90,11 @@ namespace yolo::internal
 			}
 		}
 #endif
+
+		if(auto folder = str_opt(find_arg_value(argc, argv, "--train_yolov3_colab")))
+		{
+			yolo::v3::train_on_colab(*folder);
+		}
 
 		if(auto folder = yolo::obtain_trainingdata_server(str(find_arg_value(argc, argv, "--train_yolov3"))))
 		{
@@ -105,7 +124,7 @@ namespace yolo::internal
 	template<int NumValues>
 	static std::optional<std::array<const char*, NumValues>> find_arg_values(int argc, const char** argv, const char *arg)
 	{
-		std::array<const char*, NumValues> v = {};
+		std::array<const char*, NumValues> v = {nullptr};
 		if(auto k = find_arg(argc, argv, arg))
 		{
 			if((*k)+NumValues < argc)
@@ -132,6 +151,11 @@ namespace yolo::internal
 	static std::string str(const char* cstr)
 	{
 		return cstr == nullptr ? "" : cstr;
+	}
+
+	static std::optional<std::string> str_opt(const char* cstr)
+	{
+		return cstr == nullptr ? std::nullopt : std::make_optional(cstr);
 	}
 }
 

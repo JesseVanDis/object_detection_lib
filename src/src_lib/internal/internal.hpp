@@ -45,7 +45,7 @@ namespace yolo::internal
 	std::optional<std::filesystem::path> 	obtain_starting_weights(const std::string& pretrained_weights_url, const std::optional<std::filesystem::path>& backup_path, const std::optional<std::filesystem::path>& download_target_path = std::nullopt);
 	std::optional<std::filesystem::path> 	find_related_image_filepath(const std::filesystem::path& filepath_txt);
 
-	/// 									\param server_and_port for example example: "http://192.168.1.3:8080"
+	/// 									\param server_and_port for example example: "http://192.168.1.3:8086"
 	/// 									\return false if it failed obtaining the data
 	bool 									obtain_trainingdata_server(const std::string_view& server_and_port, const std::filesystem::path& dest_path, const std::function<void(const obtain_data_from_server_progress& progress)>& progress_callback);
 	bool 									obtain_trainingdata_server(const std::string_view& server_and_port, const std::filesystem::path& dest_path);

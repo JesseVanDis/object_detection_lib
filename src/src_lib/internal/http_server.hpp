@@ -6,6 +6,7 @@
 #include <memory>
 #include <filesystem>
 #include <thread>
+#include <yolo.hpp>
 
 namespace httplib
 {
@@ -20,7 +21,7 @@ namespace yolo::http::server
 	{
 		std::filesystem::path images_and_txt_annotations_folder;
 		std::filesystem::path weights_folder_path;
-		int port = 8080;
+		unsigned int port = http::server::server::DEFAULT_PORT;
 	};
 
 	class server_internal

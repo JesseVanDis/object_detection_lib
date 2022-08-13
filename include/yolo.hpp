@@ -11,6 +11,44 @@ namespace yolo
 {
 	struct image;
 
+
+	namespace http::server
+	{
+		class server_internal;
+		class server
+		{
+			protected:
+				friend std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, unsigned int port);
+				explicit server(std::unique_ptr<server_internal>&& v);
+				const std::unique_ptr<server_internal> m_internal;
+			public:
+				~server();
+
+				enum
+				{
+					DEFAULT_PORT = 8086
+				};
+		};
+
+		/// sets up a server for hosting images/annotations
+		/// the folder content must look like this:
+		///     FOLDER/img1.jpg, FOLDER/img1.txt, FOLDER/img2.jpg, FOLDER/img2.txt ect...
+		/// when training happens while 'linked' to this server, the following will happen:
+		/// ( 'trainer' will be referred here as 'the machine on which the training happens' )
+		///     * If the server will share the images and annotations to the 'trainer'
+		///     * If the server will share the weights file ( if it has any )
+		///     * The 'trainer' will keep sharing the latest weights file back to the server again
+		/// This is convenient when using this with google colab, where colab can disconnect the 'trainer' at any time.
+		/// The server will close upon destruction of the returning object.
+		///
+		/// \param images_and_txt_annotations_folder folder with the images and annotations (.txt in YOLOv4 format) to train on.
+		///                                          The data inside the folder must be structured like so: 'img_1.jpg, img_1.txt, img_2.jpg, img_2.txt'. So no subdirectories, and the name of the jpg and txt must match.
+		///                                          It will automatically split into 'training' and 'eval' sections.
+		/// \param weights_folder_path
+		/// \return nullptr or server object. If null, the starting of the server failed. If not null, server is up and will close upon destruction of this object.
+		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", unsigned int port = server::DEFAULT_PORT);
+	}
+
 	namespace v3
 	{
 		/// usefull link: https://medium.com/@quangnhatnguyenle/how-to-train-yolov3-on-google-colab-to-detect-custom-objects-e-g-gun-detection-d3a1ee43eda1
@@ -56,7 +94,7 @@ namespace yolo
 		/// same as 'train', but prints a message of instructions on how to do so on google colab, which offers good GPU's
 		/// would be cool if this could be automated trough an API or something...
 		/// visit: https://colab.research.google.com/github/JesseVanDis/object_detection_lib/blob/main/train.ipynb
-		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const model_args& args = {});
+		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const model_args& args = {}, unsigned int port = http::server::server::DEFAULT_PORT);
 
 		/// run YOLO v3 detection on an image
 		//void detect(const std::filesystem::path& image, const std::filesystem::path& weights_filepath = "./trained.weights", const model_args& args = {});
@@ -66,40 +104,8 @@ namespace yolo
 
 	}
 
-	namespace http::server
-	{
-		class server_internal;
-		class server
-		{
-			protected:
-				friend std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path);
-				explicit server(std::unique_ptr<server_internal>&& v);
-				const std::unique_ptr<server_internal> m_internal;
-			public:
-				~server();
-		};
-
-		/// sets up a server for hosting images/annotations
-		/// the folder content must look like this:
-		///     FOLDER/img1.jpg, FOLDER/img1.txt, FOLDER/img2.jpg, FOLDER/img2.txt ect...
-		/// when training happens while 'linked' to this server, the following will happen:
-		/// ( 'trainer' will be referred here as 'the machine on which the training happens' )
-		///     * If the server will share the images and annotations to the 'trainer'
-		///     * If the server will share the weights file ( if it has any )
-		///     * The 'trainer' will keep sharing the latest weights file back to the server again
-		/// This is convenient when using this with google colab, where colab can disconnect the 'trainer' at any time.
-		/// The server will close upon destruction of the returning object.
-		///
-		/// \param images_and_txt_annotations_folder folder with the images and annotations (.txt in YOLOv4 format) to train on.
-		///                                          The data inside the folder must be structured like so: 'img_1.jpg, img_1.txt, img_2.jpg, img_2.txt'. So no subdirectories, and the name of the jpg and txt must match.
-		///                                          It will automatically split into 'training' and 'eval' sections.
-		/// \param weights_folder_path
-		/// \return nullptr or server object. If null, the starting of the server failed. If not null, server is up and will close upon destruction of this object.
-		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights");
-	}
-
 	/// pull training data from a server ( with --server )
-	/// \param server example: "http://192.168.1.3:8080"
+	/// \param server example: "http://192.168.1.3:8086"
 	/// \return returns the path to which it downloaded the data. or nullopt of the downloading failed
 	std::optional<std::filesystem::path> obtain_trainingdata_server(const std::string_view& server);
 

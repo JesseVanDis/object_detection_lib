@@ -230,5 +230,19 @@ namespace yolo
 			return download(url, dest_filepath, nullptr, overwrite, progress_callback, silent);
 		}
 
+		std::optional<std::string> download_str(const std::string_view& url, bool silent)
+		{
+			std::vector<uint8_t> result;
+			download(url, result, std::nullopt, silent);
+			result.push_back('\0');
+			std::string result_str = (const char*)result.data();
+			return result_str.empty() ? std::nullopt : std::make_optional(result_str);
+		}
+
+		std::optional<std::string> fetch_public_ipv4()
+		{
+			return download_str("https://api.ipify.org");
+		}
+
 	}
 }

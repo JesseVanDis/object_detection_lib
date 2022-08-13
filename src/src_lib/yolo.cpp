@@ -4,6 +4,7 @@
 #include "internal/cfg.hpp"
 #include "internal/internal.hpp"
 #include "internal/python.hpp"
+#include "internal/http.hpp"
 #include "internal/http_server.hpp"
 #include "models/yolov3.h"
 // https://colab.research.google.com/drive/1dT1xZ6tYClq4se4kOTen_u5MSHVHQ2hu
@@ -129,11 +130,52 @@ namespace yolo
 			return true;
 		}
 
-		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const model_args& args)
+		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const model_args& args, unsigned int port)
 		{
-			(void)images_and_txt_annotations_folder;
+			auto public_ip = yolo::http::fetch_public_ipv4();
+			log("-------------------------");
+			log("Please open the following link: ");
+			log("https://colab.research.google.com/github/JesseVanDis/object_detection_lib/blob/main/train.ipynb");
+			log("And enter in 'source' [your-public-ip]:" + std::to_string(port) + ".");
+			if(public_ip.has_value())
+			{
+				log("    ( that is  " + *public_ip + ":" + std::to_string(port) + " )");
+			}
+			log("Then, run the notebook");
+			log("-------------------------");
+			log("");
+
+			auto p_server = yolo::http::server::start(images_and_txt_annotations_folder, weights_folder_path, port);
+			if(p_server == nullptr)
+			{
+				log("Error: Server failed to start.");
+				return;
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+			if(public_ip.has_value())
+			{
+				const std::string test_url = "http://" + *public_ip + ":" + std::to_string(port) + "/test";
+				log("testing '" + test_url + "'...");
+				if(auto test_result = http::download_str(test_url))
+				{
+					log("testing '" + test_url + "'... Ok!");
+					log("server can be contacted at '" + *public_ip + ":" + std::to_string(port) + "'. Everything is set on this side. Please continue to the colab page");
+				}
+				else
+				{
+					log("testing '" + test_url + "'... Failed");
+					log("Could not verify that the server is running.");
+					log("you may have port forwarded 8080 to a different port ( which is fine, but then change the port number in the 'source' field in colab as well )");
+					log("or, you still need to set up the port forwarding in your router.");
+					log("or, everything ok, and you ISP does not allow you to make calls to your own public ip address ( yes, that happens ). In that case, just try you the colab link");
+				}
+			}
+
 			(void)weights_folder_path;
 			(void)args;
+
+			getchar(); // just wait for a key for now. server will stay active until then.
 		}
 
 		/// run YOLO v3 detection on an image
@@ -255,12 +297,13 @@ namespace yolo
 
 	namespace http::server
 	{
-		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path)
+		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, unsigned int port)
 		{
 #ifdef MINIZIP_FOUND
 			yolo::http::server::init_args args = {
 					.images_and_txt_annotations_folder = images_and_txt_annotations_folder,
-					.weights_folder_path = weights_folder_path
+					.weights_folder_path = weights_folder_path,
+					.port = port
 			};
 
 			std::unique_ptr<server_internal> t = std::make_unique<server_internal>(std::move(args));
