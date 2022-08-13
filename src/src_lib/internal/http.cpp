@@ -3,7 +3,6 @@
 #include <iostream>
 #include <curl/curl.h>
 #include <cassert>
-#include <span>
 #include "http.hpp"
 
 namespace yolo
@@ -39,8 +38,7 @@ namespace yolo
 
 				if(p_writer_dest->p_data != nullptr)
 				{
-					std::span<uint8_t> data_span((uint8_t*)data, size * nmemb);
-					p_writer_dest->p_data->insert(p_writer_dest->p_data->end(), data_span.begin(), data_span.end());
+					p_writer_dest->p_data->insert(p_writer_dest->p_data->end(), &data[0], &data[size * nmemb]);
 				}
 				if(p_writer_dest->p_ofstream != nullptr)
 				{
