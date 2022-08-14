@@ -27,7 +27,7 @@ namespace yolo::internal
 		int 	mjpeg_port = -1;
 		bool 	show_imgs = false;
 		bool 	benchmark_layers = false;
-		std::optional<std::filesystem::path> chart_path = std::nullopt;
+		std::optional<std::filesystem::path> chart_path = "./chart.png";
 	};
 
 	struct obtain_data_from_server_progress
