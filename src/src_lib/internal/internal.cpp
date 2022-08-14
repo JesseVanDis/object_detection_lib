@@ -195,7 +195,7 @@ namespace yolo
 			auto model_cfg_data_c = str_to_c(model_cfg_data);
 			auto model_cfg_c = str_to_c(model_cfg_filepath);
 			auto starting_weights_c = str_to_c(starting_weights);
-			auto chart_path_c = str_to_c(args.chart_path.has_value() ? *args.chart_path : "");
+			auto chart_path_c = str_to_c(args.chart_path.has_value() ? std::filesystem::weakly_canonical(std::filesystem::absolute(*args.chart_path)) : "");
 
 			train_detector(
 					model_cfg_data_c.data(),
