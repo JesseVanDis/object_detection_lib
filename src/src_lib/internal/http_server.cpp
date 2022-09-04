@@ -128,6 +128,7 @@ namespace yolo::http::server
 
 		m_p_server->Post("/upload", [&](const httplib::Request &req, httplib::Response &res, const httplib::ContentReader &content_reader)
 		{
+			bool ok = false;
 			if (req.is_multipart_form_data())
 			{
 				std::string name;
@@ -157,16 +158,20 @@ namespace yolo::http::server
 				if(!file_data.empty())
 				{
 					handle_file_upload(name, filename, content_type, file_data);
+					ok = true;
 				}
 			}
-
+			if(!ok)
+			{
+				log("Received post request, but not handled.");
+			}
 			res.set_content("Content received", "text/plain");
 		});
 	}
 
 	void server_internal_thread::handle_file_upload(const std::string& name, const std::string& filename, const std::string& content_type, const std::vector<uint8_t>& content)
 	{
-		std::cout << "/upload invoked with name: " << name << ", filename: " << filename << "content_type: " << content_type << " num bytes: " << content.size() << std::endl;
+		log("/upload invoked with name: '" + name + "', filename: '" + filename + "', content_type: '" + content_type + "' num bytes: " + std::to_string(content.size()));
 
 		std::filesystem::path temp_dir = std::filesystem::temp_directory_path() / filename;
 		if(std::filesystem::exists(temp_dir))
@@ -196,6 +201,7 @@ namespace yolo::http::server
 				std::filesystem::remove(weights_path);
 			}
 			std::filesystem::rename(temp_dir, weights_path);
+			log("'" + weights_path.string() + "' written.");
 
 			// weights can be:
 			//  model_10.weights
@@ -211,6 +217,7 @@ namespace yolo::http::server
 				std::filesystem::remove(png_path);
 			}
 			std::filesystem::rename(temp_dir, png_path);
+			log("'" + png_path.string() + "' written.");
 			// chart can be: chart.png
 		}
 	}

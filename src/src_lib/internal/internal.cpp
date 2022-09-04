@@ -415,6 +415,7 @@ namespace yolo
 #endif
 #endif
 			s_initialized = true;
+			std::this_thread::sleep_for(std::chrono::hours(1));
 
 			s_result.gpu_index = gpu_index;
 			s_result.gpus = &s_result.gpu_index;

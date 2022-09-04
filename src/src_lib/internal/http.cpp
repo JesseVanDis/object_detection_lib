@@ -3,6 +3,8 @@
 #include <iostream>
 #include <curl/curl.h>
 #include <cassert>
+#include <sys/stat.h>
+#include <iterator>
 #include "http.hpp"
 
 namespace yolo
@@ -84,7 +86,6 @@ namespace yolo
 			user_data->ulnow = ulnow;
 			return 0;
 		}
-
 
 		bool download(const std::string_view& url, std::optional<std::filesystem::path> dest_filepath, std::vector<uint8_t>* dest_data, bool overwrite, const std::optional<std::function<void(const progress& progress)>>& progress_callback, bool silent)
 		{
@@ -221,6 +222,98 @@ namespace yolo
 		bool download(const std::string_view& url, std::vector<uint8_t>& dest, const std::optional<std::function<void(const progress& progress)>>& progress_callback, bool silent)
 		{
 			return download(url, std::nullopt, &dest, false, progress_callback, silent);
+		}
+
+		static size_t upload_write_callback(void * buffer, size_t size, size_t count, void * user)
+		{
+			size_t numBytes = size * count;
+			static_cast<std::string*>(user)->append(static_cast<char*>(buffer), 0, numBytes);
+			return numBytes;
+		}
+
+		bool upload(const std::string_view& url, const std::filesystem::path& file_to_upload, const std::string_view& name, bool silent)
+		{
+			const std::string file_to_upload_str = file_to_upload.string();
+			const std::string name_str(name);
+
+			char errorBuffer[CURL_ERROR_SIZE];
+
+			if(!silent)
+			{
+				log("Uploading '" + std::string(file_to_upload_str) + "' to '" + std::string(url) + "'...");
+			}
+
+			if(std::filesystem::is_directory(file_to_upload))
+			{
+				log("Upload failed. '" + file_to_upload_str + "' is a directory, not a file");
+				return false;
+			}
+			if(!std::filesystem::exists(file_to_upload))
+			{
+				log("Upload failed. '" + file_to_upload_str + "' does not exist");
+				return false;
+			}
+
+			CURL *curl;
+			CURLcode result;
+			curl = curl_easy_init();
+
+			if(curl == nullptr)
+			{
+				log("Failed to init CURL");
+				return false;
+			}
+
+			// curl stuff
+			{
+				std::string url_data(url);
+
+				//curl_easy_setopt(curl, CURLOPT_FAILONERROR, 0);
+				//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+
+				curl_httppost *formpost = nullptr;
+				curl_httppost *lastptr = nullptr;
+
+				curl_formadd(&formpost,
+							 &lastptr,
+							 CURLFORM_COPYNAME, name_str.c_str(),
+							 CURLFORM_FILE, file_to_upload_str.c_str(),
+							 CURLFORM_CONTENTTYPE, "multipart/form-data",
+							 CURLFORM_END);
+
+				curl_slist *headerlist = curl_slist_append(nullptr, "Expect:");
+
+				curl_easy_setopt(curl, CURLOPT_URL, url_data.c_str());
+
+				curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerlist);
+				curl_easy_setopt(curl, CURLOPT_HTTPPOST, formpost);
+
+				std::string reponse;
+				curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, upload_write_callback);
+				curl_easy_setopt(curl, CURLOPT_WRITEDATA, &reponse);
+				if(!silent)
+				{
+					log("Received response: " + reponse);
+				}
+
+				result = curl_easy_perform(curl);
+
+				curl_formfree(formpost);
+				curl_slist_free_all(headerlist);
+			}
+
+			// Did we succeed?
+			if (result != CURLE_OK)
+			{
+				log("Download failed. CURL error: '" + std::string(errorBuffer) + "'");
+				return false;
+			}
+
+			if(!silent)
+			{
+				log("Uploading '" + std::string(file_to_upload_str) + "' to '" + std::string(url) + "'... Done!");
+			}
+			return true;
 		}
 
 		bool download(const std::string_view& url, const std::filesystem::path& dest_filepath, bool overwrite, const std::optional<std::function<void(const progress& progress)>>& progress_callback, bool silent)

@@ -191,7 +191,7 @@ namespace yolo
 		//}
 	}
 
-	std::optional<std::filesystem::path> obtain_trainingdata_server(const std::string_view& server)
+	std::optional<internal::folder_and_server> obtain_trainingdata_server(const std::string_view& server)
 	{
 		if(server.empty())
 		{
@@ -199,12 +199,12 @@ namespace yolo
 		}
 		if(!server.starts_with("http"))
 		{
-			return server; // not an url
+			return internal::folder_and_server{server, std::nullopt}; // not an url. server = folder
 		}
 		const std::filesystem::path tmp = std::filesystem::temp_directory_path() / "data_from_server";
 		if(internal::obtain_trainingdata_server(server, tmp))
 		{
-			return tmp;
+			return internal::folder_and_server{tmp, std::string(server)};
 		}
 		return std::nullopt;
 	}

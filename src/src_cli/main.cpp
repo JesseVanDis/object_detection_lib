@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include <array>
+#include "../src_lib/internal/progress_watch.hpp"
 
 namespace yolo::internal
 {
@@ -96,14 +97,17 @@ namespace yolo::internal
 			yolo::v3::train_on_colab(*folder);
 		}
 
-		if(auto folder = yolo::obtain_trainingdata_server(str(find_arg_value(argc, argv, "--train_yolov3"))))
+		if(auto v = yolo::obtain_trainingdata_server(str(find_arg_value(argc, argv, "--train_yolov3"))))
 		{
-			yolo::v3::train(*folder);
+			auto watch = progress_watch::create(v->server.value_or(""));
+			yolo::v3::train(v->folder_path);
 		}
 
 		//yolo::obtain_trainingdata_google_open_images("/home/jesse/MainSVN/catwatch_data/open_images", "Cat", 10000);
 		//yolo::v3::train("/home/jesse/MainSVN/catwatch_data/open_images");
 
+		// --train_yolov3_colab /home/jesse/MainSVN/catwatch_data/data
+		// !./object_detection_cli --train_yolov3 127.0.0.1:8086
 
 		return 0;
 

@@ -11,6 +11,14 @@ namespace yolo
 {
 	struct image;
 
+	namespace internal
+	{
+		struct folder_and_server
+		{
+			std::filesystem::path folder_path;
+			std::optional<std::string> server;
+		};
+	}
 
 	namespace http::server
 	{
@@ -101,13 +109,12 @@ namespace yolo
 
 		/// run YOLO v3 detection on an image
 		//void detect(const image& image, const std::filesystem::path& weights_filepath = "./trained.weights", const model_args& args = {});
-
 	}
 
 	/// pull training data from a server ( with --server )
 	/// \param server example: "http://192.168.1.3:8086"
 	/// \return returns the path to which it downloaded the data. or nullopt of the downloading failed
-	std::optional<std::filesystem::path> obtain_trainingdata_server(const std::string_view& server);
+	std::optional<internal::folder_and_server> obtain_trainingdata_server(const std::string_view& server);
 
 	/// downloads an existing dataset from google open images, with the matched tags. It will use the opensource tool FiftyOne
 	/// \param target_images_folder Target folder to save the images and notation files to. Format will be YOLOv4 (img1.jpg, img1.txt, img2.jpg, img2.txt ect... no sub-folders)
