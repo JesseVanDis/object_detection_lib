@@ -130,22 +130,22 @@ namespace yolo
 			return true;
 		}
 
-		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const model_args& args, unsigned int port)
+		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const model_args& args, unsigned int port)
 		{
 			auto public_ip = yolo::http::fetch_public_ipv4();
 			log("-------------------------");
 			log("Please open the following link: ");
 			log("https://colab.research.google.com/github/JesseVanDis/object_detection_lib/blob/main/train.ipynb");
-			log("And enter in 'source' [your-public-ip]:" + std::to_string(port) + ".");
+			log("And run the notebook");
+			log("You can leave the 'source' field empty.");
 			if(public_ip.has_value())
 			{
-				log("    ( that is  " + *public_ip + ":" + std::to_string(port) + " )");
+				log("    ( It should default to this machine: '" + *public_ip + ":" + std::to_string(port) + "' )");
 			}
-			log("Then, run the notebook");
 			log("-------------------------");
 			log("");
 
-			auto p_server = yolo::http::server::start(images_and_txt_annotations_folder, weights_folder_path, port);
+			auto p_server = yolo::http::server::start(images_and_txt_annotations_folder, weights_folder_path, chart_png_path, port);
 			if(p_server == nullptr)
 			{
 				log("Error: Server failed to start.");
@@ -297,12 +297,13 @@ namespace yolo
 
 	namespace http::server
 	{
-		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, unsigned int port)
+		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, unsigned int port)
 		{
 #ifdef MINIZIP_FOUND
 			yolo::http::server::init_args args = {
 					.images_and_txt_annotations_folder = images_and_txt_annotations_folder,
 					.weights_folder_path = weights_folder_path,
+					.chart_png_path = chart_png_path,
 					.port = port
 			};
 

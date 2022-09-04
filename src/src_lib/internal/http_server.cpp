@@ -125,6 +125,94 @@ namespace yolo::http::server
 			read_file(zip_path.string(), res.body);
 			res.status = 200;
 		});
+
+		m_p_server->Post("/upload", [&](const httplib::Request &req, httplib::Response &res, const httplib::ContentReader &content_reader)
+		{
+			if (req.is_multipart_form_data())
+			{
+				std::string name;
+				std::string filename;
+				std::string content_type;
+				std::vector<uint8_t> file_data;
+
+				content_reader(
+						[&](const httplib::MultipartFormData &file)
+						{
+							if(!file_data.empty())
+							{
+								handle_file_upload(name, filename, content_type, file_data);
+							}
+							name = file.name;
+							filename = file.filename;
+							content_type = file.content_type;
+							file_data.clear();
+							return true;
+						},
+						[&](const char *data, size_t data_length)
+						{
+							file_data.insert(file_data.end(), (const uint8_t*)data, (const uint8_t*)(data+data_length));
+							return true;
+						});
+
+				if(!file_data.empty())
+				{
+					handle_file_upload(name, filename, content_type, file_data);
+				}
+			}
+
+			res.set_content("Content received", "text/plain");
+		});
+	}
+
+	void server_internal_thread::handle_file_upload(const std::string& name, const std::string& filename, const std::string& content_type, const std::vector<uint8_t>& content)
+	{
+		std::cout << "/upload invoked with name: " << name << ", filename: " << filename << "content_type: " << content_type << " num bytes: " << content.size() << std::endl;
+
+		std::filesystem::path temp_dir = std::filesystem::temp_directory_path() / filename;
+		if(std::filesystem::exists(temp_dir))
+		{
+			std::filesystem::remove(temp_dir);
+		}
+
+		// safely write it to a temporary folder. if interrupted it's ok for it to be corrupted.
+		// when done, 'mv' it to the destination. ( should be safe )
+		std::string temp_dir_str = temp_dir.string();
+		{
+			std::ofstream file(temp_dir_str.c_str(), std::ios::out | std::ios::binary);
+			if(!file)
+			{
+				std::cerr << "Cannot open file!" << std::endl;
+				return;
+			}
+			file.write((const char*)content.data(), content.size());
+			file.close();
+		}
+
+		if(filename.ends_with(".weights"))
+		{
+			std::filesystem::path weights_path = m_init_args.weights_folder_path / filename;
+			if(std::filesystem::exists(weights_path))
+			{
+				std::filesystem::remove(weights_path);
+			}
+			std::filesystem::rename(temp_dir, weights_path);
+
+			// weights can be:
+			//  model_10.weights
+			//  model_20.weights
+			//  model_100.weights
+			//  model_last.weights
+		}
+		else if(filename.ends_with(".png"))
+		{
+			std::filesystem::path png_path = m_init_args.chart_png_path / filename;
+			if(std::filesystem::exists(png_path))
+			{
+				std::filesystem::remove(png_path);
+			}
+			std::filesystem::rename(temp_dir, png_path);
+			// chart can be: chart.png
+		}
 	}
 
 	void server_internal_thread::start()

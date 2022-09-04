@@ -21,6 +21,7 @@ namespace yolo::http::server
 	{
 		std::filesystem::path images_and_txt_annotations_folder;
 		std::filesystem::path weights_folder_path;
+		std::filesystem::path chart_png_path;
 		unsigned int port = http::server::server::DEFAULT_PORT;
 	};
 
@@ -50,6 +51,8 @@ namespace yolo::http::server
 			void close();
 
 		private:
+			void handle_file_upload(const std::string& name, const std::string& filename, const std::string& content_type, const std::vector<uint8_t>& content);
+
 			const init_args& m_init_args;
 			std::unique_ptr<httplib::Server> m_p_server;
 	};
