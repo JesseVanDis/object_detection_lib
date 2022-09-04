@@ -93,9 +93,15 @@ namespace yolo::internal
 	{
 		while(!m_should_exit)
 		{
-			for(const auto& file : std::filesystem::directory_iterator(m_weights_folder_path))
+			if(std::filesystem::exists(m_weights_folder_path))
 			{
-				check_file(file.path());
+				for(const auto& file : std::filesystem::directory_iterator(m_weights_folder_path))
+				{
+					if(!file.is_directory())
+					{
+						check_file(file.path());
+					}
+				}
 			}
 			if(std::filesystem::exists("./chart.png"))
 			{
