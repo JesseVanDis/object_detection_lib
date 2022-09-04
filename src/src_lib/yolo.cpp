@@ -136,7 +136,7 @@ namespace yolo
 			log("-------------------------");
 			log("Please open the following link: ");
 			log("https://colab.research.google.com/github/JesseVanDis/object_detection_lib/blob/main/train.ipynb");
-			log("And run the notebook");
+			log("And run the notebook.");
 			log("You can leave the 'source' field empty.");
 			if(public_ip.has_value())
 			{

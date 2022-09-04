@@ -4,7 +4,6 @@
 #include <string_view>
 #include <filesystem>
 #include <functional>
-#include <span>
 
 namespace yolo::http
 {
