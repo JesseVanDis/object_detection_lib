@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <atomic>
 #include <thread>
+#include <chrono>
 
 namespace yolo::internal
 {
@@ -15,7 +16,7 @@ namespace yolo::internal
 			std::filesystem::path 	path;
 			bool 					notified = false;
 			std::chrono::system_clock::time_point time_at_discovery;
-			std::optional<std::chrono::file_clock::time_point> last_write_time;
+			std::optional<std::filesystem::file_time_type> last_write_time;
 		};
 	}
 
