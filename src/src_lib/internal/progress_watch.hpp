@@ -15,6 +15,7 @@ namespace yolo::internal
 			std::filesystem::path 	path;
 			bool 					notified = false;
 			std::chrono::system_clock::time_point time_at_discovery;
+			std::optional<std::chrono::file_clock::time_point> last_write_time;
 		};
 	}
 
@@ -29,7 +30,7 @@ namespace yolo::internal
 			[[nodiscard]] bool ok() const;
 
 		private:
-			void check_file(const std::filesystem::path& filepath);
+			void check_file(const std::filesystem::path& filepath, bool remove_once_send = false);
 			void thread_main();
 
 			const std::string 				m_server;

@@ -63,7 +63,7 @@ namespace yolo::internal
 		http::upload(std::string(server) + "/upload", filepath, "data");
 	}
 
-	void progress_watch::check_file(const std::filesystem::path& filepath)
+	void progress_watch::check_file(const std::filesystem::path& filepath, bool remove_once_send)
 	{
 		const std::string filepath_str = filepath.string();
 		auto match = m_detected_files.find(filepath_str);
@@ -73,18 +73,39 @@ namespace yolo::internal
 			internal::watch_file_data data = {
 					.path = filepath,
 					.notified = false,
-					.time_at_discovery = std::chrono::system_clock::now()
+					.time_at_discovery = std::chrono::system_clock::now(),
+					.last_write_time = std::nullopt
 			};
 			m_detected_files.insert({filepath_str, data});
 		}
 		else
 		{
 			internal::watch_file_data& data = match->second;
+
+			// reset if file updated
+			if(data.last_write_time != std::nullopt && *data.last_write_time != std::filesystem::last_write_time(filepath))
+			{
+				data = internal::watch_file_data {
+						.path = data.path,
+						.notified = false,
+						.time_at_discovery = std::chrono::system_clock::now(),
+						.last_write_time = std::nullopt
+				};
+			}
+
+			// notify
 			if(!data.notified && std::chrono::system_clock::now() - data.time_at_discovery > std::chrono::seconds(10))
 			{
+				data.last_write_time = std::filesystem::last_write_time(filepath);
 				notify(m_server, data.path);
 				data.notified = true;
 				log("watch - file notified: '" + filepath_str + "'");
+				if(remove_once_send)
+				{
+					std::filesystem::remove(filepath);
+					m_detected_files.erase(filepath_str);
+					log("watch - file deleted for it is no longer needed locally: '" + filepath_str + "'");
+				}
 			}
 		}
 	}
@@ -99,7 +120,8 @@ namespace yolo::internal
 				{
 					if(!file.is_directory())
 					{
-						check_file(file.path());
+						const bool should_be_deleted_after_upload = file.path().string().ends_with(".weights");
+						check_file(file.path(), should_be_deleted_after_upload);
 					}
 				}
 			}

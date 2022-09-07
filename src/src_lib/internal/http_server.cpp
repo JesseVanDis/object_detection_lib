@@ -220,6 +220,10 @@ namespace yolo::http::server
 			log("'" + png_path.string() + "' written.");
 			// chart can be: chart.png
 		}
+		else
+		{
+			log("don't know what to do with '" + filename + "'.");
+		}
 	}
 
 	void server_internal_thread::start()
