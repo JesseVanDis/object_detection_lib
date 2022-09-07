@@ -1,4 +1,5 @@
 #ifdef MINIZIP_FOUND
+#define CPPHTTPLIB_THREAD_POOL_COUNT 2
 #include <yolo.hpp>
 #include <httplib.h>
 #include "http_server.hpp"
@@ -179,6 +180,11 @@ namespace yolo::http::server
 			std::filesystem::remove(temp_dir);
 		}
 
+		if(!std::filesystem::exists(m_init_args.weights_folder_path))
+		{
+			std::filesystem::create_directories(m_init_args.weights_folder_path);
+		}
+
 		// safely write it to a temporary folder. if interrupted it's ok for it to be corrupted.
 		// when done, 'mv' it to the destination. ( should be safe )
 		std::string temp_dir_str = temp_dir.string();
@@ -211,7 +217,7 @@ namespace yolo::http::server
 		}
 		else if(filename.ends_with(".png"))
 		{
-			std::filesystem::path png_path = m_init_args.chart_png_path / filename;
+			std::filesystem::path png_path = m_init_args.chart_png_path;
 			if(std::filesystem::exists(png_path))
 			{
 				std::filesystem::remove(png_path);

@@ -172,7 +172,6 @@ namespace yolo
 				}
 			}
 
-			(void)weights_folder_path;
 			(void)args;
 
 			getchar(); // just wait for a key for now. server will stay active until then.

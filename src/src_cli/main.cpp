@@ -94,7 +94,8 @@ namespace yolo::internal
 
 		if(auto folder = str_opt(find_arg_value(argc, argv, "--train_yolov3_colab")))
 		{
-			yolo::v3::train_on_colab(*folder);
+			std::filesystem::path base_path = "./session_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+			yolo::v3::train_on_colab(*folder, base_path / "weights", base_path / "chart.png");
 		}
 
 		if(auto v = yolo::obtain_trainingdata_server(str(find_arg_value(argc, argv, "--train_yolov3"))))
