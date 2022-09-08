@@ -3,6 +3,7 @@
 #include <cstring>
 #include <array>
 #include "../src_lib/internal/progress_watch.hpp"
+#include "../src_lib/internal/internal.hpp"
 
 namespace yolo::internal
 {
@@ -94,14 +95,15 @@ namespace yolo::internal
 
 		if(auto folder = str_opt(find_arg_value(argc, argv, "--train_yolov3_colab")))
 		{
-			std::filesystem::path base_path = "./session_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
-			yolo::v3::train_on_colab(*folder, base_path / "weights", base_path / "chart.png");
+			std::filesystem::path base_path = "./";
+			std::filesystem::path session_path = base_path / ("session_" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()));
+			yolo::v3::train_on_colab(*folder, session_path / "weights", session_path / "chart.png", find_latest_weights(base_path));
 		}
 
 		if(auto v = yolo::obtain_trainingdata_server(str(find_arg_value(argc, argv, "--train_yolov3"))))
 		{
 			auto watch = progress_watch::create(v->server.value_or(""));
-			yolo::v3::train(v->folder_path);
+			yolo::v3::train(v->images_and_txt_annotations_folder, v->weights_folder_path);
 		}
 
 		//yolo::obtain_trainingdata_google_open_images("/home/jesse/MainSVN/catwatch_data/open_images", "Cat", 10000);

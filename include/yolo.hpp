@@ -15,8 +15,9 @@ namespace yolo
 	{
 		struct folder_and_server
 		{
-			std::filesystem::path folder_path;
 			std::optional<std::string> server;
+			std::filesystem::path images_and_txt_annotations_folder;
+			std::filesystem::path weights_folder_path = "./weights";
 		};
 	}
 
@@ -26,7 +27,7 @@ namespace yolo
 		class server
 		{
 			protected:
-				friend std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, unsigned int port);
+				friend std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const std::optional<std::filesystem::path>& latest_weights_filepath, unsigned int port);
 				explicit server(std::unique_ptr<server_internal>&& v);
 				const std::unique_ptr<server_internal> m_internal;
 			public:
@@ -54,7 +55,7 @@ namespace yolo
 		///                                          It will automatically split into 'training' and 'eval' sections.
 		/// \param weights_folder_path
 		/// \return nullptr or server object. If null, the starting of the server failed. If not null, server is up and will close upon destruction of this object.
-		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const std::filesystem::path& chart_png_path = "./chart.png", unsigned int port = server::DEFAULT_PORT);
+		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const std::filesystem::path& chart_png_path = "./chart.png", const std::optional<std::filesystem::path>& latest_weights_filepath = std::nullopt, unsigned int port = server::DEFAULT_PORT);
 	}
 
 	namespace v3
@@ -102,7 +103,7 @@ namespace yolo
 		/// same as 'train', but prints a message of instructions on how to do so on google colab, which offers good GPU's
 		/// would be cool if this could be automated trough an API or something...
 		/// visit: https://colab.research.google.com/github/JesseVanDis/object_detection_lib/blob/main/train.ipynb
-		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const std::filesystem::path& chart_png_path = "./chart.png", const model_args& args = {}, unsigned int port = http::server::server::DEFAULT_PORT);
+		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const std::filesystem::path& chart_png_path = "./chart.png", const std::optional<std::filesystem::path>& latest_weights_filepath = std::nullopt, const model_args& args = {}, unsigned int port = http::server::server::DEFAULT_PORT);
 
 		/// run YOLO v3 detection on an image
 		//void detect(const std::filesystem::path& image, const std::filesystem::path& weights_filepath = "./trained.weights", const model_args& args = {});

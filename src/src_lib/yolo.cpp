@@ -130,7 +130,7 @@ namespace yolo
 			return true;
 		}
 
-		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const model_args& args, unsigned int port)
+		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const std::optional<std::filesystem::path>& latest_weights_filepath, const model_args& args, unsigned int port)
 		{
 			auto public_ip = yolo::http::fetch_public_ipv4();
 			log("-------------------------");
@@ -145,7 +145,7 @@ namespace yolo
 			log("-------------------------");
 			log("");
 
-			auto p_server = yolo::http::server::start(images_and_txt_annotations_folder, weights_folder_path, chart_png_path, port);
+			auto p_server = yolo::http::server::start(images_and_txt_annotations_folder, weights_folder_path, chart_png_path, latest_weights_filepath, port);
 			if(p_server == nullptr)
 			{
 				log("Error: Server failed to start.");
@@ -198,12 +198,13 @@ namespace yolo
 		}
 		if(!server.starts_with("http"))
 		{
-			return internal::folder_and_server{server, std::nullopt}; // not an url. server = folder
+			return internal::folder_and_server{std::nullopt, server}; // not an url. server = folder
 		}
-		const std::filesystem::path tmp = std::filesystem::temp_directory_path() / "data_from_server";
-		if(internal::obtain_trainingdata_server(server, tmp))
+		const std::filesystem::path images_and_txt_annotations_folder = std::filesystem::temp_directory_path() / "data_from_server";
+		const std::filesystem::path weights_folder = "./weights";
+		if(internal::obtain_trainingdata_server(server, images_and_txt_annotations_folder, weights_folder))
 		{
-			return internal::folder_and_server{tmp, std::string(server)};
+			return internal::folder_and_server{std::string(server), images_and_txt_annotations_folder, weights_folder};
 		}
 		return std::nullopt;
 	}
@@ -296,13 +297,14 @@ namespace yolo
 
 	namespace http::server
 	{
-		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, unsigned int port)
+		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const std::optional<std::filesystem::path>& latest_weights_filepath, unsigned int port)
 		{
 #ifdef MINIZIP_FOUND
 			yolo::http::server::init_args args = {
 					.images_and_txt_annotations_folder = images_and_txt_annotations_folder,
 					.weights_folder_path = weights_folder_path,
 					.chart_png_path = chart_png_path,
+					.latest_weights_filepath = latest_weights_filepath,
 					.port = port
 			};
 

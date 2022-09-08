@@ -16,7 +16,8 @@ namespace yolo::http::server
 	server::server(std::unique_ptr<server_internal>&& v) : m_internal(std::move(v)) {}
 	server::~server() = default;
 
-	inline void read_file(const std::string &path, std::string &out) {
+	inline void read_file(const std::string &path, std::string &out)
+	{
 		std::ifstream fs(path, std::ios_base::binary);
 		fs.seekg(0, std::ios_base::end);
 		auto size = fs.tellg();
@@ -125,6 +126,35 @@ namespace yolo::http::server
 			res.set_header("Content-Type", "application/zip");
 			read_file(zip_path.string(), res.body);
 			res.status = 200;
+		});
+
+		m_p_server->Get("/latest_weights", [this](const httplib::Request&, httplib::Response& res)
+		{
+			std::optional<std::string> attached_filename;
+			bool ok = false;
+			if(auto path = m_init_args.latest_weights_filepath)
+			{
+				if(std::filesystem::exists(*path))
+				{
+					const auto zip_path = std::filesystem::temp_directory_path() / "data_weights.zip";
+					if(std::filesystem::exists(zip_path))
+					{
+						std::filesystem::remove(zip_path);
+					}
+					if(!zip::create_zip_file(zip_path, {*path}))
+					{
+						res.set_content("Error: failed to zip images of given range", "text/plain");
+					}
+					res.set_header("Content-Type", "application/zip");
+					read_file(zip_path.string(), res.body);
+					res.status = 200;
+					ok = true;
+				}
+			}
+			if(!ok)
+			{
+				res.status = 204;
+			}
 		});
 
 		m_p_server->Post("/upload", [&](const httplib::Request &req, httplib::Response &res, const httplib::ContentReader &content_reader)

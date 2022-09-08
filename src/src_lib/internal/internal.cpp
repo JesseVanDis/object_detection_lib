@@ -156,7 +156,39 @@ namespace yolo
 			return std::nullopt;
 		}
 
-		//static std::array<char, 128> str_to_c(const std::string_view& str) { std::array<char, 128> v = {0}; strncpy(v.data(), str.data(), v.size()); return v; }
+		static void find_latest_weights(const std::filesystem::path& base_folder_path, std::filesystem::file_time_type& latest_write, std::optional<std::filesystem::path>& latest_path) // NOLINT
+		{
+			if(!std::filesystem::exists(base_folder_path) || !std::filesystem::is_directory(base_folder_path))
+			{
+				return;
+			}
+			for (const auto& path_it : std::filesystem::directory_iterator(base_folder_path))
+			{
+				const auto& path = path_it.path();
+				if(std::filesystem::is_directory(path))
+				{
+					find_latest_weights(path, latest_write, latest_path);
+				}
+				else if (path.extension() == ".weights")
+				{
+					const auto write_time = std::filesystem::last_write_time(path);
+					if(latest_path == std::nullopt || write_time > latest_write)
+					{
+						latest_write = write_time;
+						latest_path = path;
+					}
+				}
+			}
+		}
+
+		std::optional<std::filesystem::path> find_latest_weights(const std::filesystem::path& base_folder_path)
+		{
+			std::filesystem::file_time_type latest_write;
+			std::optional<std::filesystem::path> latest_path;
+			find_latest_weights(base_folder_path, latest_write, latest_path);
+			return latest_path;
+		}
+
 		static std::array<char, 128> str_to_c(const std::filesystem::path& str)
 		{
 			std::array<char, 128> v = {0};
@@ -270,15 +302,31 @@ namespace yolo
 			return map;
 		}
 
-		bool obtain_trainingdata_server(const std::string_view& server_and_port, const std::filesystem::path& dest_path, const std::function<void(const obtain_data_from_server_progress& progress)>& progress_callback)
+		bool obtain_trainingdata_server(const obtain_trainingdata_server_args& args)
 		{
-			static const size_t s_max_images_per_batch = 100;
-			if(!std::filesystem::exists(dest_path))
+			// download the latest weights
 			{
-				std::filesystem::create_directories(dest_path);
+				const std::filesystem::path dest_file = std::filesystem::temp_directory_path() / "weights_tmp.zip";
+				http::download(args.server_and_port + "/latest_weights", dest_file, true, args.weights_progress_callback, args.silent_weights);
+				if(std::filesystem::exists(dest_file))
+				{
+					if(!std::filesystem::exists(args.dest_weights_folder))
+					{
+						std::filesystem::create_directories(args.dest_weights_folder);
+					}
+					zip::extract_zip_file(dest_file, args.dest_weights_folder);
+					std::filesystem::remove(dest_file);
+				}
 			}
 
-			auto images_list = download_images_list(server_and_port);
+			// download images
+			static const size_t s_max_images_per_batch = 100;
+			if(!std::filesystem::exists(args.dest_images_and_txt_annotations_folder))
+			{
+				std::filesystem::create_directories(args.dest_images_and_txt_annotations_folder);
+			}
+
+			auto images_list = download_images_list(args.server_and_port);
 			if(!images_list.has_value() || images_list->empty())
 			{
 				return false;
@@ -289,7 +337,7 @@ namespace yolo
 			{
 				for(const auto& v : *images_list)
 				{
-					if(!std::filesystem::exists(dest_path / (v.second + ".txt")))
+					if(!std::filesystem::exists(args.dest_images_and_txt_annotations_folder / (v.second + ".txt")))
 					{
 						missing_images.push_back(v.first);
 					}
@@ -333,11 +381,11 @@ namespace yolo
 				for(const auto& v : batches)
 				{
 					std::string filename = std::to_string(v.first) + "_" + std::to_string(v.second) + ".zip";
-					const std::filesystem::path dest_file = dest_path / filename;
-					http::download(std::string(server_and_port) + "/get_images?from=" + std::to_string(v.first) + "&to=" + std::to_string(v.second), dest_file, true, std::nullopt, true);
+					const std::filesystem::path dest_file = args.dest_images_and_txt_annotations_folder / filename;
+					http::download(args.server_and_port + "/get_images?from=" + std::to_string(v.first) + "&to=" + std::to_string(v.second), dest_file, true, std::nullopt, args.silent_images_and_txt_annotations);
 					if(std::filesystem::exists(dest_file))
 					{
-						zip::extract_zip_file(dest_file, dest_path);
+						zip::extract_zip_file(dest_file, args.dest_images_and_txt_annotations_folder);
 						std::filesystem::remove(dest_file);
 					}
 					num_images_done += (v.second - v.first)+1;
@@ -346,25 +394,42 @@ namespace yolo
 							.num_images_obtained = num_images_done,
 							.total_num_images = total_num_images
 					};
-					progress_callback(progress);
+					if(args.progress_callback != std::nullopt)
+					{
+						(*args.progress_callback)(progress);
+					}
 				}
 			}
 
 			return true;
 		}
 
-		bool obtain_trainingdata_server(const std::string_view& server_and_port, const std::filesystem::path& dest_path)
+		bool obtain_trainingdata_server(const std::string_view& server_and_port, const std::filesystem::path& dest_images_and_txt_annotations_folder, const std::filesystem::path& dest_weights_folder)
 		{
 			auto last_status_update = std::chrono::system_clock::now();
 			log("downloading data from '" + std::string(server_and_port) + "'...");
-			const bool ok = obtain_trainingdata_server(server_and_port, dest_path, [&](const obtain_data_from_server_progress& progress)
+
+			auto progress_callback = [&](const obtain_data_from_server_progress& progress)
 			{
 				const auto now = std::chrono::system_clock::now();
 				if(now - last_status_update > std::chrono::seconds(1))
 				{
 					log("downloading data from '" + std::string(server_and_port) + "'... [" + std::to_string(progress.num_images_obtained) + "\\" + std::to_string(progress.total_num_images) + "]");
 				}
-			});
+			};
+
+			const obtain_trainingdata_server_args args =
+					{
+					.server_and_port = std::string(server_and_port),
+					.dest_images_and_txt_annotations_folder = dest_images_and_txt_annotations_folder,
+					.dest_weights_folder = dest_weights_folder,
+					.progress_callback = progress_callback,
+					.weights_progress_callback = std::nullopt,
+					.silent_images_and_txt_annotations = true,
+					.silent_weights = false
+			};
+
+			const bool ok = obtain_trainingdata_server(args);
 			if(!ok)
 			{
 				log("downloading data from '" + std::string(server_and_port) + "'... Failed!");
