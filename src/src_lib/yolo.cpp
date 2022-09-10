@@ -196,21 +196,87 @@ namespace yolo
 		{
 			return std::nullopt;
 		}
-		if(!server.starts_with("http"))
+		if(server.starts_with("http"))
 		{
-			return internal::folder_and_server{std::nullopt, server}; // not an url. server = folder
+			const std::filesystem::path images_and_txt_annotations_folder = std::filesystem::temp_directory_path() / "data_from_server";
+			const std::filesystem::path weights_folder = "./weights";
+			if(internal::obtain_trainingdata_server(server, images_and_txt_annotations_folder, weights_folder))
+			{
+				return internal::folder_and_server{std::string(server), images_and_txt_annotations_folder, weights_folder};
+			}
+			return std::nullopt;
 		}
-		const std::filesystem::path images_and_txt_annotations_folder = std::filesystem::temp_directory_path() / "data_from_server";
-		const std::filesystem::path weights_folder = "./weights";
-		if(internal::obtain_trainingdata_server(server, images_and_txt_annotations_folder, weights_folder))
+		if(server.starts_with("open_images,"))
 		{
-			return internal::folder_and_server{std::string(server), images_and_txt_annotations_folder, weights_folder};
+			const std::filesystem::path images_and_txt_annotations_folder = std::filesystem::temp_directory_path() / "data_from_open_images";
+			yolo::obtain_trainingdata_google_open_images(images_and_txt_annotations_folder, server);
+			return internal::folder_and_server{std::nullopt, images_and_txt_annotations_folder}; // data is saved to 'images_and_txt_annotations_folder' so just use it as a folder ( not a server )
 		}
-		return std::nullopt;
+		return internal::folder_and_server{std::nullopt, server}; // not an url. server = folder
 	}
 
 
 	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples)
+	{
+		std::string query = "open_images," + std::string(class_name) + (max_samples.has_value() ? ("," + std::to_string(*max_samples)) : std::string(""));
+		obtain_trainingdata_google_open_images(target_images_folder, query);
+	}
+
+	struct QueryParams
+	{
+		std::string class_name;
+		std::optional<size_t> max_samples;
+	};
+
+	static std::optional<QueryParams> parse(const std::string_view& query)
+	{
+		QueryParams retval;
+		std::string word;
+		size_t word_index = 0;
+		for(size_t i=0; i<=query.size(); i++)
+		{
+			const char c = i == query.size() ? ',' : query[i];
+			if(c != ',')
+			{
+				word += c;
+			}
+			else
+			{
+				char* word_cstr = const_cast<char*>(word.c_str());
+				if(word_index != 0)
+				{
+					if(word_index == 1)
+					{
+						retval.class_name = word;
+					}
+					else if(word_index == 2)
+					{
+						const size_t amount = std::strtoul(word_cstr, &word_cstr, 10);
+						if(*word_cstr != '\0')
+						{
+							log("failed to parse number in '" + std::string(query) + "'");
+							return std::nullopt;
+						}
+						retval.max_samples = amount;
+					}
+				}
+				if(word_index == 0 && word != "open_images")
+				{
+					log("query does not start with 'open_images'. please set the query as 'open_images,arg1,arg2,arg3' ect... in '" + std::string(query) + "'");
+					return std::nullopt;
+				}
+				word_index++;
+				word.clear();
+			}
+		}
+		if(retval.class_name.empty())
+		{
+			return std::nullopt;
+		}
+		return retval;
+	}
+
+	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& query)
 	{
 #ifdef PYTHON3_FOUND
 		/// https://storage.googleapis.com/openimages/web/download.html
@@ -224,6 +290,14 @@ namespace yolo
 		if(!std::filesystem::exists(temp_target_folder))
 		{
 			std::filesystem::create_directories(temp_target_folder);
+		}
+
+		// parse query
+		std::optional<QueryParams> query_params = parse(query);
+		if(!query_params)
+		{
+			log("Failed to parse open_images query");
+			return;
 		}
 
 		// python stuff...
@@ -241,6 +315,7 @@ namespace yolo
 			{
 				auto py = py_instance->code_builder();
 
+
 				py 	<< "print(\"opening 'fiftyone' module...\");";
 				py 	<< "";
 				py 	<< "import fiftyone as fo";
@@ -249,28 +324,31 @@ namespace yolo
 				py 	<< "";
 				py 	<< "print('Downloading open images dataset...')";
 				py 	<< "dataset = foz.load_zoo_dataset(";
-				py 	<< "		\"open-images-v6\",";
+				py 	<< "		\"open-images-v6\","; // supported databases: https://voxel51.com/docs/fiftyone/user_guide/dataset_zoo/datasets.html
 				//py 	<< "		split=\"validation\",";
 				py 	<< "		label_types=[\"detections\"],";
-				py 	<< "		classes=[\"" << class_name << "\"],";
-				if(max_samples.has_value())
+				py 	<< "		label_field=\"ground_truth\",";
+				py 	<< "		classes=[\"" << query_params->class_name << "\"],";
+				if(query_params->max_samples)
 				{
-					py << "		max_samples=" << *max_samples << ",";
+					py << "		max_samples=" << *query_params->max_samples << ",";
 				}
 				py 	<< "		seed=51,";
 				py 	<< "		shuffle=True,";
 				py 	<< ")";
 				py 	<< "";
-				py 	<< "dataset_filtered = dataset.filter_labels(\"detections\", F(\"label\")==\"" << class_name << "\").filter_labels(\"detections\", F(\"IsDepiction\")==False)"; // NOLINT
+				py 	<< "dataset_filtered = dataset.filter_labels(\"ground_truth_detections\", F(\"label\")==\"" << query_params->class_name << "\").filter_labels(\"ground_truth_detections\", F(\"IsDepiction\")==False)"; // NOLINT
 				py 	<< "";
-	//			py 	<< "for sample in dataset_filtered:"; // uncomment for help in filtering
-	//			py 	<< "	print(sample)";
-	//			py 	<< "";
+				//			py 	<< "for sample in dataset_filtered:"; // uncomment for help in filtering
+				//			py 	<< "	print(sample)";
+				//			py 	<< "";
+				//py 	<< "session = fo.launch_app(dataset_filtered)"; // uncomment for preview
+				//py 	<< "time.sleep(9999999)"; // uncomment for preview
 				py 	<< "print('Exporting dataset...')";
 				py 	<< "dataset_filtered.export(";
 				py 	<< "		export_dir=\"" << temp_target_folder.string() << "\",";
 				py 	<< "		dataset_type=fo.types.YOLOv4Dataset,";
-				py 	<< "		label_field=\"detections\",";
+				py 	<< "		label_field=\"ground_truth_detections\",";
 				py 	<< ")";
 
 				py.run();

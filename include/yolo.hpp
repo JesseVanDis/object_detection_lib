@@ -121,7 +121,14 @@ namespace yolo
 	/// \param target_images_folder Target folder to save the images and notation files to. Format will be YOLOv4 (img1.jpg, img1.txt, img2.jpg, img2.txt ect... no sub-folders)
 	/// \param class_name class name of the images that should be downloaded. examples: "Cat", "Dog", "Human" ect...  Combining not possible (yet)
 	/// \param max_samples
-	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples = 100);
+	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples);
+
+	/// downloads an existing dataset from google open images, with the matched tags. It will use the opensource tool FiftyOne
+	/// \param target_images_folder Target folder to save the images and notation files to. Format will be YOLOv4 (img1.jpg, img1.txt, img2.jpg, img2.txt ect... no sub-folders)
+	/// \param query self made up query for describing what content to fetch
+	///              looks like this: open_images,[subject],[max_samples]
+	//               example: open_images,cat,5000
+	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& query);
 
 	/// sets log callback for the given function. If not set, it will use std::cout
 	void set_log_callback(void(*log_function)(const std::string_view& message));
