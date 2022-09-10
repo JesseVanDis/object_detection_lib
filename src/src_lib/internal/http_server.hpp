@@ -19,7 +19,8 @@ namespace yolo::http::server
 
 	struct init_args
 	{
-		std::filesystem::path images_and_txt_annotations_folder;
+		std::string data_source;
+		//std::filesystem::path images_and_txt_annotations_folder;
 		std::filesystem::path weights_folder_path;
 		std::filesystem::path chart_png_path;
 		std::optional<std::filesystem::path> latest_weights_filepath;

@@ -36,23 +36,33 @@ namespace yolo::http::server
 			res.set_content("If you see this, the server is running", "text/plain");
 		});
 
-		m_p_server->Get("/get_images_list", [this](const httplib::Request&, httplib::Response& res)
+		m_p_server->Get("/get_data_source", [this](const httplib::Request&, httplib::Response& res)
 		{
 			std::stringstream ss;
 			size_t image_index = 0;
 			bool is_first = true;
-			for(const auto& v : std::filesystem::directory_iterator(m_init_args.images_and_txt_annotations_folder))
+
+			if(m_init_args.data_source.starts_with("open_images,"))
 			{
-				if(v.path().extension() == ".txt")
+				ss << "open_images" << std::endl;
+				ss << m_init_args.data_source << std::endl;
+			}
+			else
+			{
+				ss << "images_list" << std::endl;
+				for(const auto& v : std::filesystem::directory_iterator(m_init_args.data_source))
 				{
-					std::string filename = v.path().filename().replace_extension("").string();
-					if(!is_first)
+					if(v.path().extension() == ".txt")
 					{
-						ss << std::endl;
+						std::string filename = v.path().filename().replace_extension("").string();
+						if(!is_first)
+						{
+							ss << std::endl;
+						}
+						ss << image_index << ":" << filename;
+						is_first = false;
+						image_index++;
 					}
-					ss << image_index << ":" << filename;
-					is_first = false;
-					image_index++;
 				}
 			}
 			res.set_content(ss.str(), "text/plain");
@@ -62,12 +72,12 @@ namespace yolo::http::server
 		{
 			if(!t.has_param("from"))
 			{
-				res.set_content("Error: missing 'from' param. this param must contain the starting index of the images range you'd like to obtain. (the first column of 'host:post/get_images_list')", "text/plain");
+				res.set_content("Error: missing 'from' param. this param must contain the starting index of the images range you'd like to obtain. (the first column of 'host:post/get_data_source')", "text/plain");
 				return;
 			}
 			if(!t.has_param("to"))
 			{
-				res.set_content("Error: missing 'to' param. this param must contain the ending index of the images range you'd like to obtain. (the first column of 'host:post/get_images_list')", "text/plain");
+				res.set_content("Error: missing 'to' param. this param must contain the ending index of the images range you'd like to obtain. (the first column of 'host:post/get_data_source')", "text/plain");
 				return;
 			}
 			std::string from_str = t.get_param_value("from");
@@ -87,7 +97,7 @@ namespace yolo::http::server
 
 			std::vector<std::filesystem::path> files_to_send;
 			unsigned int image_index = 0;
-			for(const auto& v : std::filesystem::directory_iterator(m_init_args.images_and_txt_annotations_folder))
+			for(const auto& v : std::filesystem::directory_iterator(m_init_args.data_source))
 			{
 				if(v.path().extension() == ".txt")
 				{

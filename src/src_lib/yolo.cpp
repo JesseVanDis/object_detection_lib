@@ -130,7 +130,7 @@ namespace yolo
 			return true;
 		}
 
-		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const std::optional<std::filesystem::path>& latest_weights_filepath, const model_args& args, unsigned int port)
+		void train_on_colab(const std::string_view& data_source, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const std::optional<std::filesystem::path>& latest_weights_filepath, const model_args& args, unsigned int port)
 		{
 			auto public_ip = yolo::http::fetch_public_ipv4();
 			log("-------------------------");
@@ -145,7 +145,7 @@ namespace yolo
 			log("-------------------------");
 			log("");
 
-			auto p_server = yolo::http::server::start(images_and_txt_annotations_folder, weights_folder_path, chart_png_path, latest_weights_filepath, port);
+			auto p_server = yolo::http::server::start(data_source, weights_folder_path, chart_png_path, latest_weights_filepath, port);
 			if(p_server == nullptr)
 			{
 				log("Error: Server failed to start.");
@@ -216,10 +216,10 @@ namespace yolo
 	}
 
 
-	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples)
+	bool obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples)
 	{
 		std::string query = "open_images," + std::string(class_name) + (max_samples.has_value() ? ("," + std::to_string(*max_samples)) : std::string(""));
-		obtain_trainingdata_google_open_images(target_images_folder, query);
+		return obtain_trainingdata_google_open_images(target_images_folder, query);
 	}
 
 	struct QueryParams
@@ -276,7 +276,7 @@ namespace yolo
 		return retval;
 	}
 
-	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& query)
+	bool obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& query)
 	{
 #ifdef PYTHON3_FOUND
 		/// https://storage.googleapis.com/openimages/web/download.html
@@ -297,7 +297,7 @@ namespace yolo
 		if(!query_params)
 		{
 			log("Failed to parse open_images query");
-			return;
+			return false;
 		}
 
 		// python stuff...
@@ -325,7 +325,7 @@ namespace yolo
 				py 	<< "print('Downloading open images dataset...')";
 				py 	<< "dataset = foz.load_zoo_dataset(";
 				py 	<< "		\"open-images-v6\","; // supported databases: https://voxel51.com/docs/fiftyone/user_guide/dataset_zoo/datasets.html
-				//py 	<< "		split=\"validation\",";
+				//py 	<< "		split=\"validation\","; // comment this to get more images, or uncomment is for fast testing
 				py 	<< "		label_types=[\"detections\"],";
 				py 	<< "		label_field=\"ground_truth\",";
 				py 	<< "		classes=[\"" << query_params->class_name << "\"],";
@@ -364,6 +364,7 @@ namespace yolo
 		else
 		{
 			log("Failed to obtain from open images");
+			return false;
 		}
 #else
 		(void)target_images_folder;
@@ -371,15 +372,16 @@ namespace yolo
 		(void)max_samples;
 		log("This library was build without python. 'obtain_trainingdata_google_open_images' cannot be used");
 #endif
+		return true;
 	}
 
 	namespace http::server
 	{
-		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const std::optional<std::filesystem::path>& latest_weights_filepath, unsigned int port)
+		std::unique_ptr<server> start(const std::string_view& data_source, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const std::optional<std::filesystem::path>& latest_weights_filepath, unsigned int port)
 		{
 #ifdef MINIZIP_FOUND
 			yolo::http::server::init_args args = {
-					.images_and_txt_annotations_folder = images_and_txt_annotations_folder,
+					.data_source = std::string(data_source),
 					.weights_folder_path = weights_folder_path,
 					.chart_png_path = chart_png_path,
 					.latest_weights_filepath = latest_weights_filepath,

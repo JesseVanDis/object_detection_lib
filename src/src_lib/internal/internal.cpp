@@ -5,6 +5,7 @@
 #include <darknet.h>
 #include <thread>
 #include <map>
+#include <yolo.hpp>
 #include "internal.hpp"
 #include "http.hpp"
 #include "zip.hpp"
@@ -14,6 +15,8 @@
 #include <curand.h>
 #include <cublas_v2.h>
 #endif
+
+static const size_t s_max_images_per_batch = 100;
 
 
 namespace yolo
@@ -265,20 +268,29 @@ namespace yolo
 			return false;
 		}
 
-		static std::optional<std::map<unsigned int, std::string>> download_images_list(const std::string_view& server_and_port)
+		static std::optional<std::map<unsigned int, std::string>> parse_images_list(const std::vector<uint8_t>& get_data_source_data)
 		{
-			std::vector<uint8_t> images_list_data;
-			if(!http::download(std::string(server_and_port) + "/get_images_list", images_list_data))
-			{
-				return std::nullopt;
-			}
 			std::map<unsigned int, std::string> map;
 
 			std::string line;
 			unsigned int index = ~0u;
 			std::string image_name;
-			for(auto& v : images_list_data)
+			size_t start = 0;
+
+			// ignore the first line ( which just describer what source type it is )
+			while(get_data_source_data[start] != '\0' && get_data_source_data[start] != '\n')
 			{
+				start++;
+			}
+			if(get_data_source_data[start] != '\0')
+			{
+				start++;
+			}
+
+			// parse the list
+			for(size_t i=start; i<get_data_source_data.size(); i++)
+			{
+				const auto& v = get_data_source_data[i];
 				if(v != '\n')
 				{
 					line.push_back((char)v);
@@ -302,31 +314,21 @@ namespace yolo
 			return map;
 		}
 
-		bool obtain_trainingdata_server(const obtain_trainingdata_server_args& args)
+		static bool obtain_data_from_open_images(const obtain_trainingdata_server_args& args, const std::vector<uint8_t>& get_data_source_data)
 		{
-			// download the latest weights
+			std::string open_images_query = strchr((const char*)get_data_source_data.data(), '\n')+1;
+			std::replace(open_images_query.begin(), open_images_query.end(), '\n', '\0');
+			open_images_query.resize(strlen(open_images_query.c_str()));
+			if(open_images_query.size() < strlen("open_images"))
 			{
-				const std::filesystem::path dest_file = std::filesystem::temp_directory_path() / "weights_tmp.zip";
-				http::download(args.server_and_port + "/latest_weights", dest_file, true, args.weights_progress_callback, args.silent_weights);
-				if(std::filesystem::exists(dest_file))
-				{
-					if(!std::filesystem::exists(args.dest_weights_folder))
-					{
-						std::filesystem::create_directories(args.dest_weights_folder);
-					}
-					zip::extract_zip_file(dest_file, args.dest_weights_folder);
-					std::filesystem::remove(dest_file);
-				}
+				return false;
 			}
+			return yolo::obtain_trainingdata_google_open_images(args.dest_images_and_txt_annotations_folder, open_images_query);
+		}
 
-			// download images
-			static const size_t s_max_images_per_batch = 100;
-			if(!std::filesystem::exists(args.dest_images_and_txt_annotations_folder))
-			{
-				std::filesystem::create_directories(args.dest_images_and_txt_annotations_folder);
-			}
-
-			auto images_list = download_images_list(args.server_and_port);
+		static bool obtain_data_from_images_list(const obtain_trainingdata_server_args& args, const std::vector<uint8_t>& get_data_source_data)
+		{
+			auto images_list = parse_images_list(get_data_source_data);
 			if(!images_list.has_value() || images_list->empty())
 			{
 				return false;
@@ -399,6 +401,52 @@ namespace yolo
 						(*args.progress_callback)(progress);
 					}
 				}
+			}
+			return true;
+		}
+
+		bool obtain_trainingdata_server(const obtain_trainingdata_server_args& args)
+		{
+			// download the latest weights
+			{
+				const std::filesystem::path dest_file = std::filesystem::temp_directory_path() / "weights_tmp.zip";
+				http::download(args.server_and_port + "/latest_weights", dest_file, true, args.weights_progress_callback, args.silent_weights);
+				if(std::filesystem::exists(dest_file))
+				{
+					if(!std::filesystem::exists(args.dest_weights_folder))
+					{
+						std::filesystem::create_directories(args.dest_weights_folder);
+					}
+					zip::extract_zip_file(dest_file, args.dest_weights_folder);
+					std::filesystem::remove(dest_file);
+				}
+			}
+
+			// download images
+			if(!std::filesystem::exists(args.dest_images_and_txt_annotations_folder))
+			{
+				std::filesystem::create_directories(args.dest_images_and_txt_annotations_folder);
+			}
+
+			std::vector<uint8_t> get_data_source_data;
+			if(!http::download(std::string(args.server_and_port) + "/get_data_source", get_data_source_data))
+			{
+				return false;
+			}
+
+			std::string data_source_type = (const char*)get_data_source_data.data();
+			{
+				std::replace(data_source_type.begin(), data_source_type.end(), '\n', '\0');
+				data_source_type.resize(strlen(data_source_type.c_str()));
+			}
+
+			if(data_source_type == "images_list" && !obtain_data_from_images_list(args, get_data_source_data))
+			{
+				return false;
+			}
+			else if(data_source_type == "open_images" && !obtain_data_from_open_images(args, get_data_source_data))
+			{
+				return false;
 			}
 
 			return true;

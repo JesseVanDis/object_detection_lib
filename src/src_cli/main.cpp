@@ -112,8 +112,9 @@ namespace yolo::internal
 		//yolo::obtain_trainingdata_google_open_images("/home/jesse/MainSVN/catwatch_data/open_images", "Cat", 10000);
 		//yolo::v3::train("/home/jesse/MainSVN/catwatch_data/open_images");
 
-		// --train_yolov3_colab /home/jesse/MainSVN/catwatch_data/data
-		// !./object_detection_cli --train_yolov3 127.0.0.1:8086
+		// ./object_detection_cli --train_yolov3_colab /home/jesse/MainSVN/catwatch_data/data
+		// ./object_detection_cli --train_yolov3_colab open_images,Cat,100
+		// ./object_detection_cli --train_yolov3 http://127.0.0.1:8086
 
 		return 0;
 

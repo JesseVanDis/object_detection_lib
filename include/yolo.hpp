@@ -27,7 +27,7 @@ namespace yolo
 		class server
 		{
 			protected:
-				friend std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const std::optional<std::filesystem::path>& latest_weights_filepath, unsigned int port);
+				friend std::unique_ptr<server> start(const std::string_view& data_source, const std::filesystem::path& weights_folder_path, const std::filesystem::path& chart_png_path, const std::optional<std::filesystem::path>& latest_weights_filepath, unsigned int port);
 				explicit server(std::unique_ptr<server_internal>&& v);
 				const std::unique_ptr<server_internal> m_internal;
 			public:
@@ -50,12 +50,13 @@ namespace yolo
 		/// This is convenient when using this with google colab, where colab can disconnect the 'trainer' at any time.
 		/// The server will close upon destruction of the returning object.
 		///
-		/// \param images_and_txt_annotations_folder folder with the images and annotations (.txt in YOLOv4 format) to train on.
+		/// \param data_source                       folder with the images and annotations (.txt in YOLOv4 format) to train on.
 		///                                          The data inside the folder must be structured like so: 'img_1.jpg, img_1.txt, img_2.jpg, img_2.txt'. So no subdirectories, and the name of the jpg and txt must match.
 		///                                          It will automatically split into 'training' and 'eval' sections.
+		///                                          Alternatively, you can also supply a open images query (such as "open_images,Cat,500)
 		/// \param weights_folder_path
 		/// \return nullptr or server object. If null, the starting of the server failed. If not null, server is up and will close upon destruction of this object.
-		std::unique_ptr<server> start(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const std::filesystem::path& chart_png_path = "./chart.png", const std::optional<std::filesystem::path>& latest_weights_filepath = std::nullopt, unsigned int port = server::DEFAULT_PORT);
+		std::unique_ptr<server> start(const std::string_view& data_source, const std::filesystem::path& weights_folder_path = "./weights", const std::filesystem::path& chart_png_path = "./chart.png", const std::optional<std::filesystem::path>& latest_weights_filepath = std::nullopt, unsigned int port = server::DEFAULT_PORT);
 	}
 
 	namespace v3
@@ -103,7 +104,13 @@ namespace yolo
 		/// same as 'train', but prints a message of instructions on how to do so on google colab, which offers good GPU's
 		/// would be cool if this could be automated trough an API or something...
 		/// visit: https://colab.research.google.com/github/JesseVanDis/object_detection_lib/blob/main/train.ipynb
-		void train_on_colab(const std::filesystem::path& images_and_txt_annotations_folder, const std::filesystem::path& weights_folder_path = "./weights", const std::filesystem::path& chart_png_path = "./chart.png", const std::optional<std::filesystem::path>& latest_weights_filepath = std::nullopt, const model_args& args = {}, unsigned int port = http::server::server::DEFAULT_PORT);
+		/// \param data_source either a folderpath with images and notation files, or an 'open images' query ( such as: "open_images,Cat,500" )
+		/// \param weights_folder_path
+		/// \param chart_png_path
+		/// \param latest_weights_filepath
+		/// \param args
+		/// \param port
+		void train_on_colab(const std::string_view& data_source, const std::filesystem::path& weights_folder_path = "./weights", const std::filesystem::path& chart_png_path = "./chart.png", const std::optional<std::filesystem::path>& latest_weights_filepath = std::nullopt, const model_args& args = {}, unsigned int port = http::server::server::DEFAULT_PORT);
 
 		/// run YOLO v3 detection on an image
 		//void detect(const std::filesystem::path& image, const std::filesystem::path& weights_filepath = "./trained.weights", const model_args& args = {});
@@ -121,14 +128,14 @@ namespace yolo
 	/// \param target_images_folder Target folder to save the images and notation files to. Format will be YOLOv4 (img1.jpg, img1.txt, img2.jpg, img2.txt ect... no sub-folders)
 	/// \param class_name class name of the images that should be downloaded. examples: "Cat", "Dog", "Human" ect...  Combining not possible (yet)
 	/// \param max_samples
-	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples);
+	bool obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& class_name, const std::optional<size_t>& max_samples);
 
 	/// downloads an existing dataset from google open images, with the matched tags. It will use the opensource tool FiftyOne
 	/// \param target_images_folder Target folder to save the images and notation files to. Format will be YOLOv4 (img1.jpg, img1.txt, img2.jpg, img2.txt ect... no sub-folders)
 	/// \param query self made up query for describing what content to fetch
 	///              looks like this: open_images,[subject],[max_samples]
 	//               example: open_images,cat,5000
-	void obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& query);
+	bool obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& query);
 
 	/// sets log callback for the given function. If not set, it will use std::cout
 	void set_log_callback(void(*log_function)(const std::string_view& message));
