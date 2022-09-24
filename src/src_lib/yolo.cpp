@@ -1,5 +1,6 @@
 #include <iostream>
 #include <yolo.hpp>
+#include <fstream>
 #include "internal/annotations.hpp"
 #include "internal/cfg.hpp"
 #include "internal/internal.hpp"
@@ -278,9 +279,14 @@ namespace yolo
 
 	bool obtain_trainingdata_google_open_images(const std::filesystem::path& target_images_folder, const std::string_view& query)
 	{
-#ifdef PYTHON3_FOUND
+		// uncomment the below to use the internal interpreter
+		//#ifdef PYTHON3_FOUND
+		//	#define OBTAIN_USE_INTERNAL_PYTHON
+		//#endif
+
 		/// https://storage.googleapis.com/openimages/web/download.html
 
+		// create folder structure
 		const auto temp_target_folder = std::filesystem::path(target_images_folder.string() + "_tmp");
 
 		if(std::filesystem::exists(target_images_folder))
@@ -301,59 +307,84 @@ namespace yolo
 		}
 
 		// python stuff...
+		std::vector<std::string> py;
+		//std::stringstream py;
+		py.emplace_back("print(\"opening 'fiftyone' module...\");");
+		py.emplace_back("");
+		py.emplace_back("import fiftyone as fo");
+		py.emplace_back("import fiftyone.zoo as foz");
+		py.emplace_back("from fiftyone import ViewField as F");
+		py.emplace_back("");
+		py.emplace_back("print('Downloading open images dataset...')");
+		py.emplace_back("dataset = foz.load_zoo_dataset(");
+		py.emplace_back("		\"open-images-v6\","); // supported databases: https://voxel51.com/docs/fiftyone/user_guide/dataset_zoo/datasets.html
+		py.emplace_back("		split=\"validation\","); // comment this to get more images, or uncomment is for fast testing
+		py.emplace_back("		label_types=[\"detections\"],");
+		py.emplace_back("		label_field=\"ground_truth\",");
+		py.emplace_back("		classes=[\"" + query_params->class_name + "\"],");
+		if(query_params->max_samples)
 		{
-			python::init_args init =
-					{
-							.print_callback = [](const std::string_view& str)
-							{
-								log(str);
-							}
-					};
+			py.emplace_back("		max_samples=" + std::to_string(*query_params->max_samples) + ",");
+		}
+		py.emplace_back("		seed=51,");
+		py.emplace_back("		shuffle=True,");
+		py.emplace_back(")");
+		py.emplace_back("");
+		py.emplace_back("dataset_filtered = dataset.filter_labels(\"ground_truth_detections\", F(\"label\")==\"" + query_params->class_name + "\").filter_labels(\"ground_truth_detections\", F(\"IsDepiction\")==False)"); // NOLINT
+		py.emplace_back("");
+		//py 	<< "for sample in dataset_filtered:"; // uncomment for help in filtering
+		//py 	<< "	print(sample)";
+		//py 	<< "";
+		//py 	<< "session = fo.launch_app(dataset_filtered)"; // uncomment for preview
+		//py 	<< "time.sleep(9999999)"; // uncomment for preview
+		py.emplace_back("print('Exporting dataset...')");
+		py.emplace_back("dataset_filtered.export(");
+		py.emplace_back("		export_dir=\"" + temp_target_folder.string() + "\",");
+		py.emplace_back("		dataset_type=fo.types.YOLOv4Dataset,");
+		py.emplace_back("		label_field=\"ground_truth_detections\",");
+		py.emplace_back(")");
+
+		#ifndef OBTAIN_USE_INTERNAL_PYTHON
+		{
+			// create a temporary python script
+			const std::filesystem::path script_path = std::filesystem::temp_directory_path() / "temp.py";
+			const std::string script_path_str = script_path.string();
+			std::ofstream file;
+			file.open (script_path_str.c_str());
+			if(!file.is_open())
+			{
+				log("Failed to open file '" + script_path_str + "'");
+				return false;
+			}
+			for(auto& line : py)
+			{
+				file << line << "\n";
+			}
+			file.close();
+			std::string make_executable_cmd = "chmod +x \"" +  script_path_str + "\"";
+			std::string run_cmd = "python3 \"" +  script_path_str + "\"";
+			log("Running '" + make_executable_cmd + "'...");
+			system(make_executable_cmd.c_str());
+			log("Running '" + run_cmd + "'...");
+			system(run_cmd.c_str());
+		}
+		#else
+		{
+			python::init_args init = { .print_callback = [](const std::string_view& str) { log(str); } };
 
 			log("Starting python session...");
 			auto py_instance = python::new_instance(init);
 			{
-				auto py = py_instance->code_builder();
-
-
-				py 	<< "print(\"opening 'fiftyone' module...\");";
-				py 	<< "";
-				py 	<< "import fiftyone as fo";
-				py 	<< "import fiftyone.zoo as foz";
-				py 	<< "from fiftyone import ViewField as F";
-				py 	<< "";
-				py 	<< "print('Downloading open images dataset...')";
-				py 	<< "dataset = foz.load_zoo_dataset(";
-				py 	<< "		\"open-images-v6\","; // supported databases: https://voxel51.com/docs/fiftyone/user_guide/dataset_zoo/datasets.html
-				//py 	<< "		split=\"validation\","; // comment this to get more images, or uncomment is for fast testing
-				py 	<< "		label_types=[\"detections\"],";
-				py 	<< "		label_field=\"ground_truth\",";
-				py 	<< "		classes=[\"" << query_params->class_name << "\"],";
-				if(query_params->max_samples)
+				auto builder = py_instance->code_builder();
+				for(auto& line : py)
 				{
-					py << "		max_samples=" << *query_params->max_samples << ",";
+					builder << line;
 				}
-				py 	<< "		seed=51,";
-				py 	<< "		shuffle=True,";
-				py 	<< ")";
-				py 	<< "";
-				py 	<< "dataset_filtered = dataset.filter_labels(\"ground_truth_detections\", F(\"label\")==\"" << query_params->class_name << "\").filter_labels(\"ground_truth_detections\", F(\"IsDepiction\")==False)"; // NOLINT
-				py 	<< "";
-				//			py 	<< "for sample in dataset_filtered:"; // uncomment for help in filtering
-				//			py 	<< "	print(sample)";
-				//			py 	<< "";
-				//py 	<< "session = fo.launch_app(dataset_filtered)"; // uncomment for preview
-				//py 	<< "time.sleep(9999999)"; // uncomment for preview
-				py 	<< "print('Exporting dataset...')";
-				py 	<< "dataset_filtered.export(";
-				py 	<< "		export_dir=\"" << temp_target_folder.string() << "\",";
-				py 	<< "		dataset_type=fo.types.YOLOv4Dataset,";
-				py 	<< "		label_field=\"ground_truth_detections\",";
-				py 	<< ")";
 
-				py.run();
+				builder.run();
 			}
 		}
+		#endif
 
 		if(std::filesystem::exists(temp_target_folder / "data"))
 		{
@@ -366,13 +397,9 @@ namespace yolo
 			log("Failed to obtain from open images");
 			return false;
 		}
-#else
-		(void)target_images_folder;
-		(void)class_name;
-		(void)max_samples;
-		log("This library was build without python. 'obtain_trainingdata_google_open_images' cannot be used");
-#endif
+
 		return true;
+		#undef OBTAIN_USE_INTERNAL_PYTHON
 	}
 
 	namespace http::server
