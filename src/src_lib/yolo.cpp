@@ -363,10 +363,21 @@ namespace yolo
 			file.close();
 			std::string make_executable_cmd = "chmod +x \"" +  script_path_str + "\"";
 			std::string run_cmd = "python3 \"" +  script_path_str + "\"";
+			int res = 0;
 			log("Running '" + make_executable_cmd + "'...");
-			system(make_executable_cmd.c_str());
+			res = system(make_executable_cmd.c_str());
+			if(res != 0)
+			{
+				log("Running '" + make_executable_cmd + "'... Failed. Exitted with code: " + std::to_string(res));
+				return false;
+			}
 			log("Running '" + run_cmd + "'...");
-			system(run_cmd.c_str());
+			res = system(run_cmd.c_str());
+			if(res != 0)
+			{
+				log("Running '" + make_executable_cmd + "'... Failed. Exitted with code: " + std::to_string(res));
+				return false;
+			}
 		}
 		#else
 		{
