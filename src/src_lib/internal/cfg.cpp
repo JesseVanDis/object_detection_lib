@@ -17,7 +17,7 @@ namespace yolo
 			file.open (dest_cfg_filepath);
 			if(!file.is_open())
 			{
-				log("Failed to open '" + dest_cfg_filepath.string() + "'");
+				log("Failed to open '" + dest_cfg_filepath.string() + "' in 'cfg::save'");
 				return false;
 			}
 

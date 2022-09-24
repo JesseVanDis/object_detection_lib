@@ -95,7 +95,7 @@ namespace yolo
 			std::ifstream file(filepath_txt);
 			if(!file.is_open())
 			{
-				log("Failed to open '" + filepath_txt.string() + "'");
+				log("Failed to open '" + filepath_txt.string() + "' in 'annotations::load'");
 			}
 
 			bool ok = true;

@@ -265,7 +265,7 @@ namespace yolo::zip
 #endif
 		if (uf == nullptr)
 		{
-			log("Failed to open '" + zip_filename.string() + "'");
+			log("Failed to open '" + zip_filename.string() + "' in 'extract_zip_file'");
 			return false;
 		}
 		int ret = do_extract(uf, 0, nullptr, dest_folder);
