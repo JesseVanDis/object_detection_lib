@@ -318,7 +318,7 @@ namespace yolo
 		py.emplace_back("print('Downloading open images dataset...')");
 		py.emplace_back("dataset = foz.load_zoo_dataset(");
 		py.emplace_back("		\"open-images-v6\","); // supported databases: https://voxel51.com/docs/fiftyone/user_guide/dataset_zoo/datasets.html
-		py.emplace_back("		split=\"validation\","); // comment this to get more images, or uncomment is for fast testing
+		//py.emplace_back("		split=\"validation\","); // comment this to get more images, or uncomment is for fast testing
 		py.emplace_back("		label_types=[\"detections\"],");
 		py.emplace_back("		label_field=\"ground_truth\",");
 		py.emplace_back("		classes=[\"" + query_params->class_name + "\"],");
