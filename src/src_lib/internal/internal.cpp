@@ -126,7 +126,13 @@ namespace yolo
 				if(!std::filesystem::exists(pretrained_model_path))
 				{
 					log("Initiating download from '" + pretrained_weights_url + "'...");
-					if(!yolo::http::download(pretrained_weights_url, pretrained_model_path, true, download_update))
+
+					const http::additional_download_args download_args = {
+							.overwrite = true,
+							.progress_callback = download_update
+					};
+
+					if(!yolo::http::download(pretrained_weights_url, pretrained_model_path, download_args))
 					{
 						log("Failed to download pretrained model");
 						return std::nullopt;
@@ -384,7 +390,11 @@ namespace yolo
 				{
 					std::string filename = std::to_string(v.first) + "_" + std::to_string(v.second) + ".zip";
 					const std::filesystem::path dest_file = args.dest_images_and_txt_annotations_folder / filename;
-					http::download(args.server_and_port + "/get_images?from=" + std::to_string(v.first) + "&to=" + std::to_string(v.second), dest_file, true, std::nullopt, args.silent_images_and_txt_annotations);
+					const http::additional_download_args download_args = {
+							.overwrite = true,
+							.silent = args.silent_images_and_txt_annotations
+					};
+					http::download(args.server_and_port + "/get_images?from=" + std::to_string(v.first) + "&to=" + std::to_string(v.second), dest_file, download_args);
 					if(std::filesystem::exists(dest_file))
 					{
 						zip::extract_zip_file(dest_file, args.dest_images_and_txt_annotations_folder);
@@ -410,7 +420,22 @@ namespace yolo
 			// download the latest weights
 			{
 				const std::filesystem::path dest_file = std::filesystem::temp_directory_path() / "weights_tmp.zip";
-				http::download(args.server_and_port + "/latest_weights", dest_file, true, args.weights_progress_callback, args.silent_weights);
+				const http::additional_download_args download_args =
+						{
+								.overwrite = true,
+								.silent = args.silent_weights,
+								.progress_callback = args.weights_progress_callback,
+								.on_error = [](const char*, int http_code)
+								{
+									if(http_code == 204)
+									{
+										log("server does not have any weights to continue on. a fresh start will be created.");
+										return true;
+									}
+									return false;
+								}
+						};
+				http::download(args.server_and_port + "/latest_weights", dest_file, download_args);
 				if(std::filesystem::exists(dest_file))
 				{
 					if(!std::filesystem::exists(args.dest_weights_folder))
