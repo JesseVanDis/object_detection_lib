@@ -112,6 +112,10 @@ namespace yolo
 		/// \param port
 		void train_on_colab(const std::string_view& data_source, const std::filesystem::path& weights_folder_path = "./weights", const std::filesystem::path& chart_png_path = "./chart.png", const std::optional<std::filesystem::path>& latest_weights_filepath = std::nullopt, const model_args& args = {}, unsigned int port = http::server::server::DEFAULT_PORT);
 
+		/// Starts up an usb-cam and a window, and display's what the results of the training
+		/// \param weights_path file path ( file must end with .weight ) of the weight to use, or a folder path with a collection of weights, where it will pick the best weights itself
+		bool demo(const std::filesystem::path& weights_path = "./weights", const std::filesystem::path& source = "/dev/video0");
+
 		/// run YOLO v3 detection on an image
 		//void detect(const std::filesystem::path& image, const std::filesystem::path& weights_filepath = "./trained.weights", const model_args& args = {});
 

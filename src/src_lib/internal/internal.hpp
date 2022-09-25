@@ -25,15 +25,36 @@ namespace yolo::internal
 
 	struct darknet_training_args
 	{
-		bool 	should_clear = false;
-		bool 	dont_show = true;
-		bool 	map = true;
-		float 	thresh = 0.25f;
-		float 	iou_thresh = 0.5f;
-		int 	mjpeg_port = -1;
-		bool 	show_imgs = false;
-		bool 	benchmark_layers = false;
+		bool 		should_clear = false;
+		bool 		dont_show = true;
+		bool 		map = true;
+		float 		thresh = 0.25f;
+		float 		iou_thresh = 0.5f;
+		int 		mjpeg_port = -1;
+		bool 		show_imgs = false;
+		bool 		benchmark_layers = false;
 		std::optional<std::filesystem::path> chart_path = std::nullopt;
+	};
+
+	struct darknet_demo_args
+	{
+		bool 		dont_show = false;
+		float 		thresh = 0.25f;
+		float 		hier_thresh = 0.5f;
+		int 		avgframes = 3;
+		int 		frame_skip = 0;
+		std::string prefix;
+		int 		mjpeg_port = -1;
+		int 		json_port = -1;
+		bool 		dontdraw_bbox = false;
+		bool 		ext_output = false;
+		bool 		letter_box = false;
+		int 		time_limit_sec = 0;
+		bool 		benchmark = false;
+		bool 		benchmark_layers = false;
+		std::optional<std::string> http_post_host = std::nullopt;
+		std::optional<std::filesystem::path> out_filename = std::nullopt;
+		std::optional<std::unordered_map<int, std::string>> names = std::nullopt;
 	};
 
 	struct obtain_data_from_server_progress
@@ -58,6 +79,7 @@ namespace yolo::internal
 	bool 									write_yolo_data(const std::filesystem::path& dest_filepath, const yolo_data& data);
 	std::optional<std::filesystem::path> 	find_latest_backup_weights(const std::filesystem::path& folder_path);
 	bool 									start_darknet_training(const std::filesystem::path& model_cfg_data, const cfg::cfg& model_cfg, const std::filesystem::path& starting_weights, const darknet_training_args& args = {});
+	bool 									start_darknet_demo(const cfg::cfg& model_cfg, const std::filesystem::path& weights, const std::filesystem::path& source, const darknet_demo_args& args = {});
 	std::optional<std::filesystem::path> 	obtain_starting_weights(const std::string& pretrained_weights_url, const std::optional<std::filesystem::path>& backup_path, const std::optional<std::filesystem::path>& download_target_path = std::nullopt);
 	std::optional<std::filesystem::path> 	find_related_image_filepath(const std::filesystem::path& filepath_txt);
 	std::optional<std::filesystem::path> 	find_latest_weights(const std::filesystem::path& base_folder_path);

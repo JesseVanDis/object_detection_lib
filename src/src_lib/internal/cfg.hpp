@@ -22,6 +22,8 @@ namespace yolo::cfg
 		std::vector<std::string> lines;
 
 		bool save(const std::filesystem::path& dest_cfg_filepath) const; // NOLINT
+		bool get_value(const std::string_view& section, const std::string_view& name, std::string& target) const;
+		bool get_value(const std::string_view& section, const std::string_view& name, uint32_t& target) const;
 	};
 
 	std::optional<cfg> load(const std::string_view& textfile_content, const load_args& load_args);

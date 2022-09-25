@@ -68,6 +68,8 @@ namespace yolo::internal
 		std::cout << "                                     * The 'trainer' will keep sharing the latest weights file back to the server again" << std::endl;
 		std::cout << "                                 This is convenient when using this with google colab, where colab can disconnect the 'trainer' at any time." << std::endl;
 		std::cout << "" << std::endl;
+		std::cout << "	--demo                         opens a window and activates the usb-cam, you can use it to see the results of the training" << std::endl;
+		std::cout << "" << std::endl;
 		std::cout << "  -h, --help                     shows this help" << std::endl;
 		std::cout << "" << std::endl;
 	}
@@ -107,6 +109,13 @@ namespace yolo::internal
 		{
 			auto watch = progress_watch::create(v->server.value_or(""));
 			yolo::v3::train(v->images_and_txt_annotations_folder, v->weights_folder_path);
+		}
+
+		if(find_arg(argc, argv, "--demo"))
+		{
+			std::filesystem::path base_path = "./";
+			std::filesystem::path session_path = base_path / "session_1664043901";
+			yolo::v3::demo(session_path / "weights");
 		}
 
 		//yolo::obtain_trainingdata_google_open_images("/home/jesse/MainSVN/catwatch_data/open_images", "Cat", 10000);

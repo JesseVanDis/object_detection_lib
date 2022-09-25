@@ -9,6 +9,10 @@
 #include "internal.hpp"
 #include "http.hpp"
 #include "zip.hpp"
+#include "option_list.h"
+#include "data.h"
+#include "demo.h"
+#include "utils.h"
 
 #ifdef GPU_SHOW_INFO
 #include <cuda_runtime.h>
@@ -16,8 +20,8 @@
 #include <cublas_v2.h>
 #endif
 
-static const size_t s_max_images_per_batch = 100;
-
+static constexpr size_t s_max_images_per_batch = 100;
+static constexpr size_t s_str_to_c_size = 128;
 
 namespace yolo
 {
@@ -198,9 +202,9 @@ namespace yolo
 			return latest_path;
 		}
 
-		static std::array<char, 128> str_to_c(const std::filesystem::path& str)
+		static std::array<char, s_str_to_c_size> str_to_c(const std::filesystem::path& str)
 		{
-			std::array<char, 128> v = {0};
+			std::array<char, s_str_to_c_size> v = {0};
 			const auto path_str = str.string();
 			if(path_str.size() < v.size())
 			{
@@ -214,6 +218,13 @@ namespace yolo
 			return v;
 		}
 
+		static bool str_to_c(const std::filesystem::path& str, char* dest, size_t dest_capacity)
+		{
+			auto arr = str_to_c(str);
+			memcpy(dest, arr.data(), std::min(dest_capacity, arr.size()));
+			return str.empty() || arr[0] != '\0';
+		}
+
 		struct init_darknet_result
 		{
 			int gpu_index = -1;
@@ -223,25 +234,54 @@ namespace yolo
 
 		static init_darknet_result init_darknet();
 
+		//static std::filesystem::path save(const cfg::cfg& model_cfg, const std::filesystem::path& path)
+		//{;
+		//	model_cfg.save(path);
+		//	path;
+		//}
+
+		static std::filesystem::path generate_unique_temp_filename(const std::string& base_name, const std::string& extension)
+		{
+			const uint64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			static uint64_t s_uid = now;
+			s_uid += now;
+			const uint64_t uid = (s_uid + now) & 0xffffffff;
+			char filename[255];
+			snprintf(filename, sizeof(filename)-1, "%s_%#010x.%s", base_name.c_str(), (int)uid, extension.c_str());
+			const std::filesystem::path tmp_path = std::filesystem::temp_directory_path();
+			return tmp_path / filename;
+		}
+
+		struct common_darknet_args
+		{
+				common_darknet_args(const std::filesystem::path& model_cfg_data, const cfg::cfg& model_cfg, const std::filesystem::path& weights)
+				{
+					str_to_c(model_cfg_data, this->model_cfg_data, sizeof(this->model_cfg_data));
+					auto p = generate_unique_temp_filename("model", "cfg");
+					model_cfg.save(p);
+					str_to_c(p, this->model_cfg, sizeof(this->model_cfg));
+					str_to_c(weights, this->weights, sizeof(this->weights));
+				}
+
+				char 	model_cfg_data[128];
+				char 	model_cfg[128];
+				char 	weights[128];
+		};
+
 		bool start_darknet_training(const std::filesystem::path& model_cfg_data, const cfg::cfg& model_cfg, const std::filesystem::path& starting_weights, const darknet_training_args& args)
 		{
-			const std::filesystem::path tmp_path = std::filesystem::temp_directory_path();
-			const auto model_cfg_filepath = tmp_path / "model.cfg";
-			model_cfg.save(model_cfg_filepath);
+			common_darknet_args base_args(model_cfg_data, model_cfg, starting_weights);
 
 			auto darknet = init_darknet();
 
 			// !./darknet detector train data/yolo.data cfg/yolov3_custom_train.cfg darknet53.conv.74 -dont_show -mjpeg_port 8090 -map
 
-			auto model_cfg_data_c = str_to_c(model_cfg_data);
-			auto model_cfg_c = str_to_c(model_cfg_filepath);
-			auto starting_weights_c = str_to_c(starting_weights);
 			auto chart_path_c = str_to_c(args.chart_path.has_value() ? std::filesystem::weakly_canonical(std::filesystem::absolute(*args.chart_path)) : "");
 
 			train_detector(
-					model_cfg_data_c.data(),
-					model_cfg_c.data(),
-					starting_weights_c.data(),
+					base_args.model_cfg_data,
+					base_args.model_cfg,
+					base_args.weights,
 					darknet.gpus,
 					darknet.ngpus,
 					args.should_clear ? 1 : 0,
@@ -253,6 +293,90 @@ namespace yolo
 					args.show_imgs ? 1 : 0,
 					args.benchmark_layers ? 1 : 0,
 					chart_path_c[0] == '\0' ? nullptr : chart_path_c.data());
+
+			return true;
+		}
+
+		bool start_darknet_demo(const cfg::cfg& model_cfg, const std::filesystem::path& weights, const std::filesystem::path& source, const darknet_demo_args& args)
+		{
+			common_darknet_args base_args("", model_cfg, weights);
+
+			uint32_t classes = 0;
+			model_cfg.get_value("", "classes", classes);
+			if(classes == 0)
+			{
+				return false; // we can maybe also just set it to 20 ? ( like in the darknet sample, which is set by default )
+			}
+
+			// names ( the darknet way )
+			char** names = nullptr;
+			{
+				std::unordered_map<int, std::string> names_map;
+				if(args.names != std::nullopt)
+				{
+					names_map = *args.names;
+				}
+				else
+				{
+					names_map.insert({0, "."});
+				}
+				names = (char**)xcalloc(names_map.size(), sizeof(void*));
+				for(const auto& v : names_map)
+				{
+					char* name = (char*)xmalloc((v.second.size()+1) * sizeof(char));
+					strncpy(name, v.second.c_str(), (v.second.size()+1) * sizeof(char));
+					names[v.first] = name;
+				}
+			}
+
+			auto in_filename = str_to_c(source);
+			auto out_filename = str_to_c(args.out_filename.has_value() ? std::filesystem::weakly_canonical(std::filesystem::absolute(*args.out_filename)) : "");
+			auto http_post_host = str_to_c(args.http_post_host.has_value() ? std::filesystem::weakly_canonical(std::filesystem::absolute(*args.http_post_host)) : "");
+			auto prefix = str_to_c(args.prefix);
+
+			int cam_index = 0;
+			const std::string source_str = source.string();
+			if(source_str.starts_with("/dev/video"))
+			{
+				std::string substr = source_str.substr(strlen("/dev/video"));
+				char *endptr;
+				cam_index = (int)strtol(substr.c_str(), &endptr, 10);
+				if (*endptr != '\0')
+				{
+					log("Could not obtain camera index from '" + source_str + "'");
+					return false;
+				}
+				in_filename[0] = '\0';
+			}
+			else
+			{
+				in_filename = str_to_c(std::filesystem::weakly_canonical(std::filesystem::absolute(source)));
+			}
+			cam_index = 0;
+
+			demo(
+					base_args.model_cfg,
+					(char*)"/home/jesse/MainSVN/catwatch/v2/src/cmake-build-debug/object_detection_lib/src/session_1664043901/weights/model_1860.weights",
+					args.thresh,
+					args.hier_thresh,
+					cam_index,
+					in_filename[0] == '\0' ? nullptr : in_filename.data(),
+					names,
+					(int)classes,
+					args.avgframes,
+					args.frame_skip,
+					prefix.data(),
+					out_filename[0] == '\0' ? nullptr : out_filename.data(),
+				 	args.mjpeg_port,
+					args.dontdraw_bbox ? 1 : 0,
+					args.json_port,
+					args.benchmark ? 0 : args.dont_show,
+					args.ext_output ? 1 : 0,
+					args.letter_box ? 1 : 0,
+					args.time_limit_sec,
+					http_post_host[0] == '\0' ? nullptr : http_post_host.data(),
+					args.benchmark ? 1 : 0,
+					args.benchmark_layers);
 
 			return true;
 		}
