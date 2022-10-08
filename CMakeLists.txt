@@ -25,6 +25,8 @@ else()
     set(ENABLE_OPENCV OFF)
 endif()
 
+set(CMAKE_COMPILER_IS_GNUCC_OR_CLANG TRUE)
+
 add_subdirectory(3rdparty/darknet)
 add_subdirectory(src)
 
