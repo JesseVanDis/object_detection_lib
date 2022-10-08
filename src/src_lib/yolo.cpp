@@ -8,7 +8,7 @@
 #include "internal/http.hpp"
 #include "internal/http_server.hpp"
 #include "models/yolov3.h"
-#include <opencv4/opencv2/opencv.hpp>
+//#include <opencv4/opencv2/opencv.hpp>
 // https://colab.research.google.com/drive/1dT1xZ6tYClq4se4kOTen_u5MSHVHQ2hu
 
 // print warning when 'max_batches' is > 10000, then it will need a lot of training to be done before a loss chart is generated. ( just for the user )
